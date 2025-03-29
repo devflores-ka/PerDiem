@@ -69,7 +69,7 @@ class _RoomsPageState extends State<RoomsPage> {
             child: TextField(
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
-                labelText: 'Search',
+                labelText: 'Buscar',
               ),
               onChanged: (value) => _setFilters(value),
             ),
@@ -111,6 +111,18 @@ class _RoomsPageState extends State<RoomsPage> {
                             ),
                           );
                         },
+                      ),
+                      noItemsFoundIndicatorBuilder: (_) => Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Text(
+                            'No se encontraron chats',
+                            style: TextStyle(
+                              fontSize: 16.0,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
                   );

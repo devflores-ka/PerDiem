@@ -79,7 +79,7 @@ class _UsersPageState extends State<UsersPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           systemOverlayStyle: SystemUiOverlayStyle.light,
-          title: const Text('Users'),
+          title: const Text('Usuarios'),
         ),
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -89,7 +89,7 @@ class _UsersPageState extends State<UsersPage> {
               child: TextField(
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
-                  labelText: 'Search',
+                  labelText: 'Buscar',
                 ),
                 onChanged: (value) => _setFilters(value),
               ),

@@ -57,7 +57,7 @@ class _RoomPageState extends State<RoomPage> {
                   child: const Row(
                     children: [
                       Icon(Icons.image),
-                      Text('Image'),
+                      Text('Imagen'),
                     ],
                   ),
                 ),
@@ -69,7 +69,7 @@ class _RoomPageState extends State<RoomPage> {
                   child: const Row(
                     children: [
                       Icon(Icons.attach_file),
-                      Text('File'),
+                      Text('Archivo'),
                     ],
                   ),
                 ),
@@ -183,7 +183,7 @@ class _RoomPageState extends State<RoomPage> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           systemOverlayStyle: SystemUiOverlayStyle.light,
-          title: const Text('Chat'),
+          title: const Text('Conversación'),
         ),
         body: StreamBuilder<List<types.Message>>(
           initialData: const [],
@@ -197,6 +197,7 @@ class _RoomPageState extends State<RoomPage> {
               theme: const DefaultChatTheme(
                 messageMaxWidth: 600,
               ),
+              l10n: const ChatL10nEs(),
               typingIndicatorOptions: TypingIndicatorOptions(
                 typingUsers: users.data ?? [],
               ),

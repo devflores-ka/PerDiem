@@ -41,10 +41,6 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void logout() async {
-    await Supabase.instance.client.auth.signOut();
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_error) {
@@ -74,12 +70,8 @@ class _HomePageState extends State<HomePage> {
                   },
           ),
         ],
-        leading: IconButton(
-          icon: const Icon(Icons.logout),
-          onPressed: _user == null ? null : logout,
-        ),
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        title: const Text('Rooms'),
+        title: const Text('Mensajes'),
       ),
       body: _user == null
           ? Container(
@@ -90,7 +82,7 @@ class _HomePageState extends State<HomePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Not authenticated'),
+                  const Text('No haz iniciado sesión'),
                   TextButton(
                     onPressed: () {
                       Navigator.of(context).push(
@@ -100,7 +92,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       );
                     },
-                    child: const Text('Login'),
+                    child: const Text('Iniciar sesión'),
                   ),
                 ],
               ),

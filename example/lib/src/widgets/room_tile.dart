@@ -100,7 +100,7 @@ class RoomTile extends StatelessWidget {
                               (room.updatedAt ?? 0),
                         ),
                       ),
-                      locale: 'en_short',
+                      locale: 'es',
                     ),
                   ),
                   if (room.lastMessages!.first.status != null)
