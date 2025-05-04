@@ -6,20 +6,29 @@ final supabase = Supabase.instance.client;
 
 Future<List<TarjetaServicio>> obtenerTarjetasServicios() async {
   try {
-    print("Iniciando obtención de ofertas...");
+    if (kDebugMode) {
+      print('Iniciando obtención de ofertas...');
+    }
     final ofertas = await supabase
         .schema('jobs')
         .from('offers')
         .select('image_url, description, amount, user_id');
     
-    print("Ofertas obtenidas: ${ofertas.length}");
+    if (kDebugMode) {
+      print('Ofertas obtenidas: ${ofertas.length}');
+    }
     
+    // ignore: omit_local_variable_types, prefer_final_locals
     List<TarjetaServicio> tarjetas = [];
     
     for (var oferta in ofertas) {
-      print("Procesando oferta: ${oferta['description']}");
-      String userId = oferta['user_id'];
-      print("Buscando usuario con ID: $userId");
+      if (kDebugMode) {
+        print("Procesando oferta: ${oferta['description']}");
+      }
+      final String userId = oferta['user_id'];
+      if (kDebugMode) {
+        print('Buscando usuario con ID: $userId');
+      }
       
       try {
         final usuarios = await supabase
@@ -28,11 +37,15 @@ Future<List<TarjetaServicio>> obtenerTarjetasServicios() async {
             .select('firstName, lastName, imageUrl')
             .eq('id', userId);
         
-        print("Usuarios encontrados: ${usuarios.length}");
+        if (kDebugMode) {
+          print('Usuarios encontrados: ${usuarios.length}');
+        }
         
         if (usuarios.isNotEmpty) {
-          var usuario = usuarios[0];
-          print("Usando usuario: ${usuario['firstName']}");
+          final usuario = usuarios[0];
+          if (kDebugMode) {
+            print("Usando usuario: ${usuario['firstName']}");
+          }
           
           tarjetas.add(TarjetaServicio(
             imagenUrl: oferta['image_url'],
@@ -43,20 +56,29 @@ Future<List<TarjetaServicio>> obtenerTarjetasServicios() async {
             calificacion: 4.9,
             numResenas: '2.5k',
             esFavorito: false,
-          ));
+          ),
+          );
         } else {
-          print("No se encontró usuario con ID: $userId");
+          if (kDebugMode) {
+            print('No se encontró usuario con ID: $userId');
+          }
         }
       } catch (userError) {
-        print("Error al buscar usuario con ID $userId: $userError");
+        if (kDebugMode) {
+          print('Error al buscar usuario con ID $userId: $userError');
+        }
       }
     }
     
-    print("Total de tarjetas creadas: ${tarjetas.length}");
+    if (kDebugMode) {
+      print('Total de tarjetas creadas: ${tarjetas.length}');
+    }
     return tarjetas;
     
   } catch (e) {
-    print("Error principal: $e");
+    if (kDebugMode) {
+      print('Error principal: $e');
+    }
     throw Exception('Error al obtener datos: $e');
   }
 }

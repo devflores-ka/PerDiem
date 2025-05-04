@@ -8,6 +8,7 @@ import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:open_filex/open_filex.dart';
+import '../../widgets/notification_service.dart';
 
 class RoomPage extends StatefulWidget {
   const RoomPage({
@@ -171,6 +172,38 @@ class _RoomPageState extends State<RoomPage> {
       message,
       widget.room.id,
     );
+    // Añadir notificación para los mensajes nuevos
+    // Solo enviar notificación al otro usuario en la sala (no al autor)
+    final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
+    if (currentUserId != null && widget.room.users.length > 1) {
+      // Encontrar al otro usuario (no el remitente)
+      final otherUser = widget.room.users.firstWhere(
+            (user) => user.id != currentUserId,
+        orElse: () => types.User(id: ''), // Usuario vacío si no hay otro usuario
+      );
+
+      if (otherUser.id.isNotEmpty) {
+        try {
+          debugPrint('📨 Enviando notificación de nuevo mensaje al usuario: ${otherUser.id}');
+
+          // Obtener nombre del remitente (usuario actual)
+          final senderName = SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario';
+
+          await NotificationService.sendNewMessageNotification(
+            otherUser.id,
+            senderName,
+            message.text,
+            widget.room.id,
+          );
+
+          debugPrint('✅ Notificación de mensaje enviada correctamente');
+        } catch (e) {
+          debugPrint('⚠️ Error al enviar notificación de mensaje: $e');
+          debugPrint('Stack trace: ${StackTrace.current}');
+          // Continuamos aunque falle la notificación
+        }
+      }
+    }
   }
 
   void _setAttachmentUploading(bool uploading) {

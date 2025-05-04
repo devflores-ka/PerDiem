@@ -21,34 +21,72 @@ class RoomTile extends StatelessWidget {
     var otherUserIndex = -1;
     types.User? otherUser;
 
+    // Determinar el tipo de sala y manejar según corresponda
     if (room.type == types.RoomType.direct) {
       otherUserIndex = room.users.indexWhere(
-        (u) => u.id != SupabaseChatCore.instance.loggedSupabaseUser!.id,
+            (u) => u.id != SupabaseChatCore.instance.loggedSupabaseUser!.id,
       );
       if (otherUserIndex >= 0) {
         otherUser = room.users[otherUserIndex];
       }
     }
 
+    // Para el tipo offer_group, usamos la primera letra del nombre de la oferta
+    final isOfferGroup = room.metadata != null && room.metadata!['offer_id'] != null;
     final hasImage = room.imageUrl != null;
-    final name = room.name ?? '';
+
+    // Decidir qué nombre mostrar
+    var name = '';
+    if (isOfferGroup) {
+      name = room.metadata!['offer_name'] ?? room.name ?? '';
+    } else {
+      name = room.name ?? '';
+    }
+
     final Widget child = CircleAvatar(
       backgroundColor: hasImage ? Colors.transparent : color,
       backgroundImage: hasImage ? NetworkImage(room.imageUrl!) : null,
       radius: 20,
       child: !hasImage
           ? Text(
-              name.isEmpty ? '' : name[0].toUpperCase(),
-              style: const TextStyle(color: Colors.white),
-            )
+        name.isEmpty ? '' : name[0].toUpperCase(),
+        style: const TextStyle(color: Colors.white),
+      )
           : null,
     );
-    if (otherUser == null) {
+
+    // Solo mostrar status online para chats directos, no para grupos
+    if (otherUser == null || isOfferGroup) {
       return Padding(
         padding: const EdgeInsets.only(right: 16),
-        child: child,
+        child: isOfferGroup
+            ? Stack(
+          alignment: Alignment.bottomRight,
+          children: [
+            child,
+            // Indicador visual para salas de tipo oferta
+            Container(
+              width: 12,
+              height: 12,
+              margin: const EdgeInsets.only(
+                right: 2,
+                bottom: 2,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.orange,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2,
+                ),
+              ),
+            ),
+          ],
+        )
+            : child,
       );
     }
+
     return Padding(
       padding: const EdgeInsets.only(right: 16),
       child: UserOnlineStatusWidget(
@@ -80,53 +118,97 @@ class RoomTile extends StatelessWidget {
     );
   }
 
+  String _getRoomName() {
+    // Manejar salas de tipo oferta
+    if (room.metadata != null && room.metadata!['offer_id'] != null) {
+      return room.metadata!['offer_name'] ?? 'Oferta sin nombre';
+    }
+
+    // Para salas directas, usar el nombre del otro usuario
+    if (room.type == types.RoomType.direct) {
+      final otherUserIndex = room.users.indexWhere(
+            (u) => u.id != SupabaseChatCore.instance.loggedSupabaseUser!.id,
+      );
+
+      if (otherUserIndex >= 0) {
+        final otherUser = room.users[otherUserIndex];
+        final firstName = otherUser.firstName ?? '';
+        final lastName = otherUser.lastName ?? '';
+
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      }
+    }
+
+    // Fallback al nombre de la sala
+    return room.name ?? '';
+  }
+
   @override
   Widget build(BuildContext context) => ListTile(
-        key: ValueKey(room.id),
-        leading: _buildAvatar(room),
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(room.name ?? ''),
-            if (room.lastMessages?.isNotEmpty == true)
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    timeago.format(
-                      DateTime.now().subtract(
-                        Duration(
-                          milliseconds: DateTime.now().millisecondsSinceEpoch -
-                              (room.updatedAt ?? 0),
-                        ),
-                      ),
-                      locale: 'es',
+    key: ValueKey(room.id),
+    leading: _buildAvatar(room),
+    title: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Flexible(
+          child: Row(
+            children: [
+              // Mostrar icono para grupos de ofertas
+              if (room.metadata != null && room.metadata!['offer_id'] != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6.0),
+                  child: Icon(Icons.handshake, size: 16, color: Colors.orange),
+                ),
+              Flexible(
+                child: Text(
+                  _getRoomName(),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (room.lastMessages?.isNotEmpty == true)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                timeago.format(
+                  DateTime.now().subtract(
+                    Duration(
+                      milliseconds: DateTime.now().millisecondsSinceEpoch -
+                          (room.updatedAt ?? 0),
                     ),
                   ),
-                  if (room.lastMessages!.first.status != null)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8.0),
-                      child: Icon(
-                        size: 20,
-                        room.lastMessages!.first.status!.icon,
-                        color:
-                            room.lastMessages!.first.status == types.Status.seen
-                                ? Colors.lightBlue
-                                : null,
-                      ),
-                    ),
-                ],
+                  locale: 'es',
+                ),
               ),
-          ],
-        ),
-        subtitle: room.lastMessages?.isNotEmpty == true &&
-                room.lastMessages!.first is types.TextMessage
-            ? Text(
-                (room.lastMessages!.first as types.TextMessage).text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              )
-            : null,
-        onTap: () => onTap(room),
-      );
+              if (room.lastMessages!.first.status != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Icon(
+                    size: 20,
+                    room.lastMessages!.first.status!.icon,
+                    color:
+                    room.lastMessages!.first.status == types.Status.seen
+                        ? Colors.lightBlue
+                        : null,
+                  ),
+                ),
+            ],
+          ),
+      ],
+    ),
+    subtitle: room.lastMessages?.isNotEmpty == true &&
+        room.lastMessages!.first is types.TextMessage
+        ? Text(
+      (room.lastMessages!.first as types.TextMessage).text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    )
+        : null,
+    onTap: () => onTap(room),
+  );
 }

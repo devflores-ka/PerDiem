@@ -3,6 +3,7 @@
 CREATE OR REPLACE FUNCTION jobs.auto_register_applicant()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- Registra automáticamente al creador de la oferta como postulante
     INSERT INTO jobs.offer_applicants (offer_id, user_id)
     VALUES (NEW.id, NEW.user_id)
     ON CONFLICT DO NOTHING;
@@ -10,18 +11,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Crear trigger solo si no existe
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 
-        FROM information_schema.triggers 
-        WHERE event_object_table = 'offers'
-        AND trigger_schema = 'jobs'
-        AND trigger_name = 'trigger_auto_register_applicant'
-    ) THEN
-        CREATE TRIGGER trigger_auto_register_applicant
-        AFTER INSERT ON jobs.offers
-        FOR EACH ROW EXECUTE FUNCTION jobs.auto_register_applicant();
-    END IF;
-END $$;
+-- Eliminar el trigger si ya existe para evitar conflictos
+DROP TRIGGER IF EXISTS trigger_auto_register_applicant ON jobs.offers;
+
+-- Crear el trigger
+CREATE TRIGGER trigger_auto_register_applicant
+AFTER INSERT ON jobs.offers
+FOR EACH ROW 
+EXECUTE FUNCTION jobs.auto_register_applicant();

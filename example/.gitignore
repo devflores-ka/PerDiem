@@ -45,3 +45,5 @@ app.*.map.json
 
 /lib/supabase_options_for_test.dart
 /lib/main_test.dart
+
+/supabase/functions/service_account.json

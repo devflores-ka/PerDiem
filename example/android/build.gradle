@@ -17,6 +17,22 @@ allprojects {
     }
 }
 
+subprojects { subproject ->
+    subproject.plugins.whenPluginAdded { plugin ->
+        if (plugin.class.name == "com.android.build.gradle.LibraryPlugin" ||
+                plugin.class.name == "com.android.build.gradle.AppPlugin") {
+            subproject.android {
+                if (!hasProperty('namespace')) {
+                    namespace = "com.example.${subproject.name.replace('-', '_')}"
+                }
+                buildFeatures {
+                    buildConfig = true
+                }
+            }
+        }
+    }
+}
+
 rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"

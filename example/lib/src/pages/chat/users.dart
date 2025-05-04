@@ -4,7 +4,7 @@ import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
-import '../widgets/user_tile.dart';
+import '../../widgets/user_tile.dart';
 import 'room.dart';
 
 class UsersPage extends StatefulWidget {

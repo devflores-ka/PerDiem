@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'auth.dart';
+import '../auth/auth.dart';
 import 'rooms.dart';
-import 'users.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -53,26 +52,10 @@ class _HomePageState extends State<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.add,
-            ),
-            onPressed: _user == null
-                ? null
-                : () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        fullscreenDialog: true,
-                        builder: (context) => const UsersPage(),
-                      ),
-                    );
-                  },
-          ),
-        ],
         systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('Mensajes'),
       ),
+      backgroundColor: Colors.white,
       body: _user == null
           ? Container(
               alignment: Alignment.center,

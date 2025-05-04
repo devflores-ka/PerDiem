@@ -81,6 +81,7 @@ CREATE TABLE chats.users (
     "firstName" text,
     "imageUrl" text,
     "lastName" text,
+    "descripcion" text,
     metadata jsonb,
     role text,
     id uuid NOT NULL,

@@ -1,13 +1,20 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'src/pages/home.dart';
-import 'src/pages/location_example.dart';
+import 'firebase_options.dart';
+import 'src/pages/chat/home.dart';
+import 'src/pages/jobs/my_app.dart';
 import 'src/pages/map_example.dart';
-import 'src/pages/my_app.dart';
+import 'src/pages/search/location_example.dart';
+import 'src/pages/user/perfil_screen.dart';
 import 'src/theme/color_schemes.dart';
+import 'src/widgets/notification_service.dart';
 import 'supabase_options.dart';
+
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +22,14 @@ void main() async {
     url: supabaseOptions.url,
     anonKey: supabaseOptions.anonKey,
   );
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // Initialize the notification service
+  await NotificationService().initialize();
+  if (kDebugMode) {
+    print('🚀 Initializing NotificationService');
+  }
   runApp(const MyApp());
 }
 
@@ -23,6 +38,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
+        scaffoldMessengerKey: scaffoldMessengerKey,
         title: 'Supabase Chat',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -62,7 +78,7 @@ class _MainScreenState extends State<MainScreen> {
     MapScreen(),
     const HomePage(),
     const UbicacionActual(),
-    const Center(child: Text('Perfil')),
+    const PerfilScreen(),
   ];
 
   @override

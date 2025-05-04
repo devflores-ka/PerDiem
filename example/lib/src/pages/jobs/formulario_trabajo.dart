@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../supabase_options.dart';
+import '../../../supabase_options.dart';
 
 class FormularioTrabajo extends StatefulWidget {
   const FormularioTrabajo({super.key});
