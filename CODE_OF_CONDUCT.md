@@ -1,79 +1,54 @@
-# Código de Conducta del Pacto del Colaborador
+# Código de Conducta de la Comunidad de A PerDiem
 
-## Nuestro Compromiso
+## Compromiso
 
-Como miembros, colaboradores y líderes, nos comprometemos a que la participación en nuestra comunidad sea una experiencia libre de acoso para todos, independientemente de su edad, complexión, discapacidad visible o invisible, origen étnico, características sexuales, identidad y expresión de género, nivel de experiencia, educación, estatus socioeconómico, nacionalidad, apariencia personal, raza, casta, color, religión o identidad y orientación sexual.
+Como responsables del desarrollo de **A PerDiem**, nos comprometemos a mantener un entorno respetuoso, inclusivo y libre de acoso para todos quienes colaboren o participen en el proyecto, ya sea en entornos digitales o presenciales.
 
-Nos comprometemos a actuar e interactuar de maneras que contribuyan a una comunidad abierta, acogedora, diversa, inclusiva y saludable.
+Buscamos fomentar un espacio donde las ideas puedan compartirse de forma abierta, pero siempre en un marco de respeto, profesionalismo y colaboración.
 
-## Nuestros Estándares
+## Estándares Esperados
 
-Ejemplos de comportamiento que contribuyen a un ambiente positivo para nuestra comunidad incluyen:
+Se espera que todos los colaboradores:
 
-* Demostrar empatía y amabilidad hacia los demás
-* Respetar las diferentes opiniones, puntos de vista y experiencias
-* Dar y aceptar con amabilidad comentarios constructivos
-* Aceptar la responsabilidad y disculparse con quienes se vieron afectados por nuestros errores, y aprender de la experiencia
-* Centrarse en lo que es mejor no solo para nosotros como individuos, sino para la comunidad en general
+* Actúen con empatía y respeto hacia los demás.
+* Acepten y valoren la diversidad de opiniones y experiencias.
+* Den retroalimentación constructiva y bien intencionada.
+* Asuman responsabilidad por sus acciones y aprendan de los errores.
+* Prioricen el bienestar y el avance del proyecto y su comunidad.
 
-Ejemplos de comportamiento inaceptable incluyen:
+## Comportamientos No Aceptados
 
-* El uso de lenguaje o imágenes sexualizadas, así como la atención o insinuaciones sexuales de cualquier tipo
-* Troleo, comentarios insultantes o despectivos, y ataques personales o políticos
-* Acoso público o privado
-* Publicar información privada de otros, como una dirección física o de correo electrónico, sin su permiso explícito
-* Otra conducta que podría considerarse razonablemente inapropiada en un entorno profesional
+No se tolerará ninguna de las siguientes conductas:
 
-## Responsabilidades de Cumplimiento
+* Uso de lenguaje ofensivo, sexista, racista o discriminatorio.
+* Intimidación, acoso o amenazas, tanto públicas como privadas.
+* Comentarios despectivos, personales o ataques hacia cualquier persona.
+* Divulgación no autorizada de información personal de terceros.
+* Cualquier conducta que se considere inapropiada en un entorno profesional.
 
-Los líderes de la comunidad son responsables de aclarar y hacer cumplir nuestros estándares de comportamiento aceptable Comportamiento y tomarán medidas correctivas apropiadas y justas en respuesta a cualquier comportamiento que consideren inapropiado, amenazante, ofensivo o dañino.
+## Ámbito de Aplicación
 
-Los líderes de la comunidad tienen el derecho y la responsabilidad de eliminar, editar o rechazar comentarios, confirmaciones, código, ediciones de la wiki, problemas y otras contribuciones que no se ajusten a este Código de Conducta, y comunicarán los motivos de las decisiones de moderación cuando corresponda.
+Este código aplica a todos los espacios donde se relacione con el proyecto A PerDiem, incluyendo:
 
-## Alcance
+* Repositorios de código y documentación.
+* Plataformas de mensajería o foros de discusión relacionados.
+* Eventos, presentaciones o comunicaciones oficiales.
+* Redes sociales, cuando se haga referencia al proyecto.
 
-Este Código de Conducta se aplica en todos los espacios comunitarios y también cuando una persona representa oficialmente a la comunidad en espacios públicos.
-Algunos ejemplos de representación de nuestra comunidad incluyen usar una dirección de correo electrónico oficial, publicar a través de una cuenta oficial en redes sociales o actuar como representante designado en un evento en línea o presencial.
+## Envío de Reportes
 
-## Cumplimiento
+Los casos de conducta inapropiada pueden reportarse de forma confidencial a los mantenedores del proyecto escribiendo a:
+📧 **[contacto@aperdiem.cl](mailto:contacto@aperdiem.cl)** *(o el correo que definas)*
 
-Los casos de comportamiento abusivo, acosador o inaceptable pueden reportarse a los líderes de la comunidad responsables del cumplimiento en <info@insideapp.it>.
-Todas las quejas serán revisadas e investigadas de manera pronta y justa.
+Todos los reportes serán tratados con seriedad y confidencialidad, y se tomará acción en caso de ser necesario.
 
-Todos los líderes comunitarios están obligados a respetar la privacidad y seguridad de quien reporte cualquier incidente.
+## Consecuencias
 
-## Directrices de Cumplimiento
+El incumplimiento de este código podrá tener consecuencias que van desde una advertencia hasta la expulsión permanente del espacio comunitario, dependiendo de la gravedad y frecuencia de la falta.
 
-Los líderes comunitarios seguirán estas Directrices de Impacto Comunitario para determinar las consecuencias de cualquier acción que consideren una violación de este Código de Conducta:
+---
 
-### 1. Corrección
+## Licencia del Proyecto
 
-**Impacto Comunitario**: Uso de lenguaje inapropiado u otro comportamiento considerado poco profesional o inapropiado en la comunidad.
-
-**Consecuencia**: Una advertencia privada por escrito de los líderes comunitarios, que aclara la naturaleza de la violación y explica por qué el comportamiento fue inapropiado. Se puede solicitar una disculpa pública.
-
-### 2. Advertencia
-
-**Impacto Comunitario**: Una violación causada por un solo incidente o una serie de acciones.
-
-**Consecuencia**: Una advertencia con consecuencias por el comportamiento continuo. Prohibición de interactuar con las personas involucradas, incluyendo la interacción no solicitada con quienes hacen cumplir el Código de Conducta, durante un período específico. Esto incluye evitar interacciones en espacios comunitarios, así como en canales externos como redes sociales. Incumplir estos términos puede resultar en una suspensión temporal o permanente.
-
-### 3. Suspensión temporal
-
-**Impacto en la comunidad**: Una infracción grave de las normas de la comunidad, incluyendo un comportamiento inapropiado persistente.
-
-**Consecuencia**: Una suspensión temporal de cualquier tipo de interacción o comunicación pública con la comunidad durante un período específico. No se permite ninguna interacción pública ni privada con las personas involucradas, incluyendo la interacción no solicitada con quienes aplican el Código de conducta, durante este período.
-Incumplir estos términos puede resultar en una suspensión permanente.
-
-### 4. Suspensión permanente
-
-**Impacto en la comunidad**: Demostrar un patrón de infracción de las normas de la comunidad, incluyendo un comportamiento inapropiado persistente, acoso a una persona o agresión o menosprecio hacia ciertas categorías de personas.
-
-**Consecuencia**: Una suspensión permanente de cualquier tipo de interacción pública dentro de la comunidad.
-
-## Atribución
-
-Este Código de Conducta es una adaptación del [Contributor Covenant][página principal], versión 2.0, disponible en
-[https://www.contributor-covenant.org/version/2/0/code_of_conduct.html][v2.0].
-
-Las Directrices de Impacto en la Comunidad se inspiraron en la [Escalera de cumplimiento del código de conducta de Mozilla][Mozilla CoC].
+El proyecto **A PerDiem** es un desarrollo con **licencia propietaria** y su código está **protegido por derechos de autor**.
+No está permitido copiar, distribuir o reutilizar el código sin autorización expresa de los propietarios. Cualquier contribución realizada al código fuente, documentación u otros activos del proyecto quedará sujeta a los términos definidos por los responsables del proyecto.
