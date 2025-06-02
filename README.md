@@ -66,26 +66,9 @@ Perdiem nace para cubrir la necesidad de una plataforma nacional que conecte efi
 
 ## 🚀 Configuración inicial
 
-### 1. Crear proyecto Supabase
+SE ADJUNTARÁ UNA COPIA DE SEGURIDAD DE LA BASE DE DATOS PARA REPLICAR.
 
-```bash
-# Instalar Supabase CLI
-npm install -g supabase
-
-# Iniciar sesión
-supabase login
-
-# Crear nuevo proyecto
-supabase projects create perdiem-app
-
-# Obtener referencia del proyecto
-supabase projects list
-
-# Obtener claves API
-supabase projects api-keys
-
-
-### 2. Configurar el proyecto Flutter
+### 1. Configurar el proyecto Flutter
 
 1. Clona el repositorio:
 ```bash
@@ -104,25 +87,9 @@ const String supabaseUrl = 'YOUR_SUPABASE_URL';
 const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
 ```
 
-### 3. Configurar base de datos
+### 3. Configurar esquemas en Supabase
 
-Ejecuta los scripts de preparación para configurar automáticamente las tablas, reglas de seguridad y buckets necesarios:
-
-#### Linux/macOS:
-```bash
-cd ./scripts/
-./setup_database.sh -h "your-postgres-host" -p your-postgres-port -d "your-postgres-database" -U "your-postgres-user"
-```
-
-#### Windows:
-```powershell
-cd .\scripts\
-.\setup_database.ps1 -hostname "your-postgres-host" -port your-postgres-port -database "your-postgres-database" -user "your-postgres-user"
-```
-
-### 4. Configurar esquemas en Supabase
-
-Desde el dashboard de Supabase, agrega el esquema `services` a la exposición de la API:
+Desde el dashboard de Supabase, agrega el esquema `chats` y `jobs` a la exposición de la API:
 
 1. Ve a **Settings** > **API**
 2. En **Schema exposure**, agrega `chats` y `jobs`
@@ -223,10 +190,10 @@ Desde el dashboard de Supabase, agrega el esquema `services` a la exposición de
 - [x] Perfiles de usuario
 
 ### Fase 2 - Mejoras (Mes 4-6)
-- [ ] Sistema de calificaciones
+- [x] Sistema de calificaciones
 - [ ] Verificación de identidad
 - [ ] Integración de pagos
-- [ ] Notificaciones push
+- [x] Notificaciones push
 - [ ] Optimización de rendimiento
 
 ### Fase 3 - Escalabilidad (Mes 7+)
@@ -264,26 +231,23 @@ Desde el dashboard de Supabase, agrega el esquema `services` a la exposición de
 
 ## 🤝 Contribución
 
-Este proyecto está en desarrollo activo. Si quieres contribuir:
+Este proyecto está en desarrollo activo:
 
-1. Fork el repositorio
-2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. Commit tus cambios (`git commit -am 'Agrega nueva funcionalidad'`)
-4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
-5. Abre un Pull Request
+1. Leer código de conducta
+2. Crear rama para desarrollo
 
 ---
 
 ## 📄 Licencia
 
-Este proyecto está bajo la Licencia Apache 2.0. Ver el archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está bajo la Licencia Propietaria. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
 ## 📞 Contacto
 
 - **Desarrollador**: Luciano Flores
-- **Email**: [luciano.flores@example.com](mailto:luciano.flores@example.com)
+- **Email**: [luciano.flores@example.com](mailto:lucianoflores2022@hotmail.com)
 - **Ubicación**: Iquique, Chile
 
 ---
