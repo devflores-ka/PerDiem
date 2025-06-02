@@ -1,15 +1,35 @@
 // ignore_for_file: use_build_context_synchronously, depend_on_referenced_packages
-
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../services/review_service.dart';
+import '../../services/user_service.dart';
+import '../auth/auth.dart';
+import '../jobs/trabajos_screen.dart';
+import 'configuracion/settings_screen.dart';
+import 'personal/reviews_screen.dart';
+import 'personal/update_categories_screen.dart';
+import 'personal/update_location_screen.dart';
+
 class PerfilScreen extends StatefulWidget {
-  const PerfilScreen({super.key});
+  final VoidCallback? onProfileUpdated;
+
+  const PerfilScreen({
+    super.key,
+    this.onProfileUpdated,
+  });
 
   @override
   State<PerfilScreen> createState() => _PerfilScreenState();
@@ -17,37 +37,53 @@ class PerfilScreen extends StatefulWidget {
 
 class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final UserService _userService = UserService();
+  String _currentLocationAddress = 'Cargando ubicación...';
+  bool _isLoadingLocation = true;
   final supabase = Supabase.instance.client;
+
+  // Estado de carga y autenticación
+  bool isLoading = true;
+  bool isUserLoggedIn = false;
 
   // Datos del usuario
   String? firstName = '';
   String? lastName = '';
   String? imageUrl = 'https://placehold.co/100';
   String? descripcion = '';
-  bool isLoading = true;
 
-  // Lista de habilidades del usuario
+  // Calificaciones
+  double averageRating = 0.0;
+  int totalReviews = 0;
+  bool isLoadingReviews = true;
+  UserRating? userRating;
+
+  // Trabajos
+  List<Map<String, dynamic>> _trabajosRecientes = [];
+  bool _isLoadingTrabajos = true;
+
+  // Habilidades
   List<Map<String, dynamic>> userSkills = [];
-  // Lista de todas las habilidades disponibles (para búsqueda)
   List<Map<String, dynamic>> allSkills = [];
-  // Niveles de habilidad disponibles
   final List<String> nivelesHabilidad = ['Principiante', 'Intermedio', 'Avanzado', 'Experto'];
 
-  // Para edición
+  // Categorías y oficios
+  List<Map<String, dynamic>> _userCategories = [];
+  Map<int, List<Map<String, dynamic>>> _userOficios = {};
+
+  // Controllers
   final TextEditingController _descripcionController = TextEditingController();
   final TextEditingController _searchSkillController = TextEditingController();
-  final _nivelSeleccionado = 'Intermedio'; // Nivel por defecto
-
-  // Para la edición de descripción inline
   bool _isEditingDescription = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _cargarDatosUsuario();
-    _cargarHabilidadesUsuario();
-    _cargarTodasHabilidades();
+    if (kDebugMode) {
+      print('🔵 PerfilScreen - initState ejecutado');
+    }
+    _initializeData();
   }
 
   @override
@@ -58,16 +94,238 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  // Cargar datos del usuario desde Supabase
+  // Inicializar todos los datos necesarios
+  Future<void> _initializeData() async {
+    await _cargarDatosUsuario();
+    if (isUserLoggedIn) {
+      await Future.wait([
+        _cargarHabilidadesUsuario(),
+        _cargarTodasHabilidades(),
+        _cargarCalificacionUsuario(),
+        _cargarTrabajosRecientes(),
+        _loadUserCategoriesAndOficios(),
+        _loadUserLocation(), // AGREGAR ESTA LÍNEA
+      ]);
+    }
+  }
+
+  Future<String> _getAddressFromCoordinates(double lat, double lng) async {
+    try {
+      // Usando la API de Nominatim (OpenStreetMap) - es gratuita
+      final url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&accept-language=es';
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'User-Agent': 'TuApp/1.0', // Requerido por Nominatim
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['address'] != null) {
+          final address = data['address'];
+
+          // Extraer información relevante
+          final String city = address['city'] ??
+              address['town'] ??
+              address['village'] ??
+              address['municipality'] ??
+              'Ciudad desconocida';
+
+          final String region = address['state'] ??
+              address['region'] ??
+              'Región desconocida';
+
+          final String country = address['country'] ?? 'País desconocido';
+
+          return '$city, $region, $country';
+        }
+      }
+
+      // Si falla, devolver coordenadas como respaldo
+      return 'Lat: ${lat.toStringAsFixed(4)}, Lng: ${lng.toStringAsFixed(4)}';
+
+    } catch (e) {
+      debugPrint('Error en geocodificación: $e');
+      return 'Lat: ${lat.toStringAsFixed(4)}, Lng: ${lng.toStringAsFixed(4)}';
+    }
+  }
+
+  Future<void> _loadUserLocation() async {
+    setState(() => _isLoadingLocation = true);
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        setState(() {
+          _currentLocationAddress = 'Ubicación no disponible';
+          _isLoadingLocation = false;
+        });
+        return;
+      }
+
+      final locationData = await supabase
+          .schema('jobs')
+          .from('worker_locations')
+          .select('latitud, longitud')
+          .eq('user_id', user.id)
+          .eq('user_type', 'worker')
+          .maybeSingle();
+
+      if (locationData != null) {
+        final lat = locationData['latitud'] is String
+            ? double.parse(locationData['latitud'])
+            : locationData['latitud'].toDouble();
+        final lng = locationData['longitud'] is String
+            ? double.parse(locationData['longitud'])
+            : locationData['longitud'].toDouble();
+
+        // AQUÍ ESTÁ EL CAMBIO PRINCIPAL - usar geocodificación
+        final address = await _getAddressFromCoordinates(lat, lng);
+
+        setState(() {
+          _currentLocationAddress = address;
+          _isLoadingLocation = false;
+        });
+      } else {
+        setState(() {
+          _currentLocationAddress = 'Ubicación no configurada';
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando ubicación: $e');
+      setState(() {
+        _currentLocationAddress = 'Error al cargar ubicación';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  // Método para navegar a la pantalla de ubicación:
+  void _navigateToUpdateLocation() async {
+    if (kDebugMode) {
+      print('🔵 INICIO - Botón de ubicación presionado');
+    }
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (kDebugMode) {
+        print('🔵 Usuario actual: ${user?.id}');
+      }
+
+      if (user == null) {
+        if (kDebugMode) {
+          print('🔴 ERROR: Usuario no autenticado');
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Debes iniciar sesión para cambiar ubicación'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      if (kDebugMode) {
+        print('🔵 Cargando ubicación actual del usuario...');
+      }
+      // Cargar la ubicación actual del usuario
+      final locationData = await supabase
+          .schema('jobs')
+          .from('worker_locations')
+          .select('latitud, longitud')
+          .eq('user_id', user.id)
+          .eq('user_type', 'worker')
+          .maybeSingle();
+
+      LatLng? initialPosition;
+      if (locationData != null) {
+        if (kDebugMode) {
+          print('🔵 Ubicación encontrada en DB: $locationData');
+        }
+        final lat = locationData['latitud'] is String
+            ? double.parse(locationData['latitud'])
+            : locationData['latitud'].toDouble();
+        final lng = locationData['longitud'] is String
+            ? double.parse(locationData['longitud'])
+            : locationData['longitud'].toDouble();
+
+        initialPosition = LatLng(lat, lng);
+        if (kDebugMode) {
+          print('🔵 Posición inicial: $initialPosition');
+        }
+      } else {
+        if (kDebugMode) {
+          print('🔵 No hay ubicación guardada, usando por defecto');
+        }
+      }
+
+      if (kDebugMode) {
+        print('🔵 Navegando a UpdateLocationScreen...');
+      }
+      if (kDebugMode) {
+        print('🔵 Context mounted: ${context.mounted}');
+      }
+
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) {
+            if (kDebugMode) {
+              print('🔵 Construyendo UpdateLocationScreen');
+            }
+            return UpdateLocationScreen(
+              initialPosition: initialPosition,
+            );
+          },
+        ),
+      );
+
+      if (kDebugMode) {
+        print('🔵 Regresé de UpdateLocationScreen con resultado: $result');
+      }
+
+      // Si se actualizó la ubicación, recargar la información
+      if (result != null) {
+        if (kDebugMode) {
+          print('🔵 Recargando ubicación del usuario...');
+        }
+        await _loadUserLocation();
+        if (kDebugMode) {
+          print('🔵 Ubicación recargada exitosamente');
+        }
+      }
+
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('🔴 ERROR COMPLETO: $e');
+      }
+      if (kDebugMode) {
+        print('🔴 STACK TRACE: $stackTrace');
+      }
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar ubicación: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // MÉTODOS DE CARGA DE DATOS
   Future<void> _cargarDatosUsuario() async {
     setState(() => isLoading = true);
 
     try {
-      // Obtener el usuario actual
       final user = supabase.auth.currentUser;
 
       if (user != null) {
-        // Consultar los datos del usuario
         final userData = await supabase
             .schema('chats')
             .from('users')
@@ -82,14 +340,132 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           descripcion = userData['descripcion'] ?? 'Sin descripción';
           _descripcionController.text = descripcion!;
           isLoading = false;
+          isUserLoggedIn = true;
         });
       } else {
-        // Si no hay usuario autenticado
-        setState(() => isLoading = false);
+        setState(() {
+          isLoading = false;
+          isUserLoggedIn = false;
+        });
       }
     } catch (e) {
       debugPrint('Error al cargar datos del usuario: $e');
-      setState(() => isLoading = false);
+      setState(() {
+        isLoading = false;
+        isUserLoggedIn = false;
+      });
+    }
+  }
+
+  Future<void> _cargarTrabajosRecientes() async {
+    setState(() => _isLoadingTrabajos = true);
+
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) {
+        setState(() => _isLoadingTrabajos = false);
+        return;
+      }
+
+      // Obtener trabajos donde soy el proveedor (sender_id)
+      final trabajosComoProveedor = await supabase
+          .schema('jobs')
+          .from('budget_proposals')
+          .select('id, description, completed_at, amount, room_id, receiver_id, sender_id')
+          .eq('sender_id', user.id)
+          .eq('is_completed', true)
+          .order('completed_at', ascending: false);
+
+      // Obtener trabajos donde soy el cliente (receiver_id)
+      final trabajosComoCliente = await supabase
+          .schema('jobs')
+          .from('budget_proposals')
+          .select('id, description, completed_at, amount, room_id, receiver_id, sender_id')
+          .eq('receiver_id', user.id)
+          .eq('is_completed', true)
+          .order('completed_at', ascending: false);
+
+      // Combinar ambos tipos de trabajos
+      final todosLosTrabajos = <Map<String, dynamic>>[];
+
+      // Procesar trabajos como proveedor
+      for (var trabajo in trabajosComoProveedor) {
+        try {
+          // Obtener datos del cliente
+          final clienteData = await supabase
+              .schema('chats')
+              .from('users')
+              .select('firstName, lastName')
+              .eq('id', trabajo['receiver_id'])
+              .single();
+
+          todosLosTrabajos.add({
+            ...trabajo,
+            'tipo': 'proveedor',
+            'titulo': trabajo['description'] ?? 'Servicio prestado',
+            'cliente_nombre': '${clienteData['firstName'] ?? ''} ${clienteData['lastName'] ?? ''}'.trim(),
+            'mostrar_como': 'Servicio prestado a ${clienteData['firstName'] ?? 'Cliente'}',
+          });
+        } catch (e) {
+          debugPrint('Error obteniendo datos del cliente: $e');
+          todosLosTrabajos.add({
+            ...trabajo,
+            'tipo': 'proveedor',
+            'titulo': trabajo['description'] ?? 'Servicio prestado',
+            'cliente_nombre': 'Cliente',
+            'mostrar_como': 'Servicio prestado',
+          });
+        }
+      }
+
+      // Procesar trabajos como cliente
+      for (var trabajo in trabajosComoCliente) {
+        try {
+          // Obtener datos del proveedor
+          final proveedorData = await supabase
+              .schema('chats')
+              .from('users')
+              .select('firstName, lastName')
+              .eq('id', trabajo['sender_id'])
+              .single();
+
+          todosLosTrabajos.add({
+            ...trabajo,
+            'tipo': 'cliente',
+            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'proveedor_nombre': '${proveedorData['firstName'] ?? ''} ${proveedorData['lastName'] ?? ''}'.trim(),
+            'mostrar_como': 'Servicio de ${proveedorData['firstName'] ?? 'Proveedor'}',
+          });
+        } catch (e) {
+          debugPrint('Error obteniendo datos del proveedor: $e');
+          todosLosTrabajos.add({
+            ...trabajo,
+            'tipo': 'cliente',
+            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'proveedor_nombre': 'Proveedor',
+            'mostrar_como': 'Servicio contratado',
+          });
+        }
+      }
+
+      // Ordenar todos los trabajos por fecha de finalización (más recientes primero)
+      todosLosTrabajos.sort((a, b) {
+        final fechaA = DateTime.parse(a['completed_at']);
+        final fechaB = DateTime.parse(b['completed_at']);
+        return fechaB.compareTo(fechaA);
+      });
+
+      // Tomar solo los 3 más recientes
+      final trabajosLimitados = todosLosTrabajos.take(3).toList();
+
+      setState(() {
+        _trabajosRecientes = trabajosLimitados;
+        _isLoadingTrabajos = false;
+      });
+
+    } catch (e) {
+      debugPrint('Error al cargar trabajos recientes: $e');
+      setState(() => _isLoadingTrabajos = false);
     }
   }
 
@@ -98,53 +474,31 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      // Debug output before query
-      if (kDebugMode) {
-        print('Cargando habilidades para usuario: ${user.id}');
-      }
-
-      // Consulta para obtener habilidades del usuario con nivel
       final data = await supabase
           .schema('jobs')
           .from('habilidades_usuario')
           .select('habilidad_id, nivel, habilidades:habilidad_id(id, name)')
           .eq('user_id', user.id);
 
-      // Debug: print raw data
-      if (kDebugMode) {
-        print('Datos de habilidades obtenidos: $data');
-      }
-
-      // Transformar datos para un formato más usable
-      final List<Map<String, dynamic>> skills = [];
+      final skills = <Map<String, dynamic>>[];
       for (var item in data) {
-        // Check if habilidades data exists before accessing it
         if (item['habilidades'] != null) {
           skills.add({
             'id': item['habilidad_id'],
             'name': item['habilidades']['name'],
-            'nivel': item['nivel'] ?? 'Intermedio' // Default level if null
+            'nivel': item['nivel'] ?? 'Intermedio',
           });
         }
       }
 
-      if (kDebugMode) {
-        print('Habilidades procesadas: $skills');
-      }
       setState(() => userSkills = skills);
     } catch (e) {
       debugPrint('Error al cargar habilidades del usuario: $e');
-      // Show error details in console
-      if (kDebugMode) {
-        print('Error completo: $e');
-      }
     }
   }
 
-  // Cargar todas las habilidades disponibles
   Future<void> _cargarTodasHabilidades() async {
     try {
-      // Consulta para obtener todas las habilidades
       final data = await supabase
           .schema('jobs')
           .from('habilidades')
@@ -157,10 +511,332 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     }
   }
 
-  // Buscar habilidades disponibles
+  Future<void> _cargarCalificacionUsuario() async {
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) return;
+
+      final rating = await ReviewService.getUserRatingOptimized(user.id);
+
+      setState(() {
+        userRating = rating;
+        averageRating = rating.averageRating;
+        totalReviews = rating.totalReviews;
+        isLoadingReviews = false;
+      });
+    } catch (e) {
+      debugPrint('Error al cargar calificación del usuario: $e');
+      setState(() => isLoadingReviews = false);
+    }
+  }
+
+  Future<void> _loadUserCategoriesAndOficios() async {
+    try {
+      final result = await _userService.getUserCategoriesWithOficios();
+      setState(() {
+        _userCategories = result['categories'] ?? [];
+        _userOficios = result['oficiosPorCategoria'] ?? {};
+      });
+    } catch (e) {
+      debugPrint('Error loading categories and oficios: $e');
+    }
+  }
+
+  // MÉTODOS DE ACTUALIZACIÓN
+  Future<void> _actualizarDescripcion(String nuevaDescripcion) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await supabase
+          .schema('chats')
+          .from('users')
+          .update({'descripcion': nuevaDescripcion})
+          .eq('id', user.id);
+
+      setState(() => descripcion = nuevaDescripcion);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Descripción actualizada correctamente')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al actualizar: $e')),
+        );
+      }
+    }
+  }
+
+  // Método mejorado para actualizar foto de perfil con múltiples opciones
+  Future<void> _actualizarFotoPerfil() async {
+    // Mostrar dialog con opciones
+    final option = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+          title: const Text('Seleccionar foto'),
+          content: const Text('¿Cómo te gustaría seleccionar tu foto?'),
+          actions: [
+            TextButton.icon(
+              icon: const Icon(Icons.camera_alt),
+              label: const Text('Cámara'),
+              onPressed: () => Navigator.of(context).pop('camera'),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.photo_library),
+              label: const Text('Galería'),
+              onPressed: () => Navigator.of(context).pop('gallery'),
+            ),
+            TextButton.icon(
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Explorador'),
+              onPressed: () => Navigator.of(context).pop('files'),
+            ),
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+    );
+
+    if (option == null) return;
+
+    final picker = ImagePicker();
+    XFile? imagen;
+
+    try {
+      switch (option) {
+        case 'camera':
+          imagen = await picker.pickImage(
+            source: ImageSource.camera,
+            maxWidth: 1024,
+            maxHeight: 1024,
+            imageQuality: 85,
+          );
+          break;
+
+        case 'gallery':
+          imagen = await picker.pickImage(
+            source: ImageSource.gallery,
+            maxWidth: 1024,
+            maxHeight: 1024,
+            imageQuality: 85,
+          );
+          break;
+
+        case 'files':
+        // Para dispositivos antiguos, usar el explorador de archivos
+          imagen = await _pickImageFromFiles();
+          break;
+      }
+
+      if (imagen == null) return;
+
+      await _procesarImagenSeleccionada(imagen);
+
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al seleccionar imagen: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Método alternativo usando file_picker para dispositivos antiguos
+  Future<XFile?> _pickImageFromFiles() async {
+    try {
+      // Necesitarás agregar file_picker a pubspec.yaml
+      // file_picker: ^6.1.1
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+        withData: false, // Para mejor rendimiento en dispositivos antiguos
+      );
+
+      if (result != null && result.files.single.path != null) {
+        return XFile(result.files.single.path!);
+      }
+
+      return null;
+
+    } catch (e) {
+      debugPrint('Error con file_picker: $e');
+
+      // Fallback: Intentar con image_picker con configuración más compatible
+      final picker = ImagePicker();
+      return await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800, // Reducir resolución para dispositivos antiguos
+        maxHeight: 800,
+        imageQuality: 70,
+      );
+    }
+  }
+
+  // Método para procesar la imagen seleccionada (común para todas las opciones)
+  Future<void> _procesarImagenSeleccionada(XFile imagen) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // Mostrar indicador de carga
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) => const AlertDialog(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Subiendo imagen...'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      // Verificar el tamaño del archivo
+      final file = File(imagen.path);
+      final fileSize = await file.length();
+
+      // Si el archivo es muy grande (>2MB), comprimirlo más
+      XFile finalImage = imagen;
+      if (fileSize > 2 * 1024 * 1024) {
+        finalImage = await _compressImage(imagen);
+      }
+
+      final fileName = '${user.id}-${DateTime.now().millisecondsSinceEpoch}${path.extension(finalImage.path)}';
+      final storageUrl = 'user_profiles/$fileName';
+
+      final finalFile = File(finalImage.path);
+      await supabase.storage.from('profile_images').upload(storageUrl, finalFile);
+
+      final publicUrl = supabase.storage.from('profile_images').getPublicUrl(storageUrl);
+
+      await supabase
+          .schema('chats')
+          .from('users')
+          .update({'imageUrl': publicUrl})
+          .eq('id', user.id);
+
+      setState(() => imageUrl = publicUrl);
+
+      if (mounted) {
+        Navigator.pop(context); // Cerrar dialog de carga
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto de perfil actualizada'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pop(context); // Cerrar dialog de carga
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al actualizar foto: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // Método para comprimir imagen en dispositivos antiguos
+  Future<XFile> _compressImage(XFile image) async {
+    try {
+
+      final file = File(image.path);
+      final bytes = await file.readAsBytes();
+
+      // Decodificar imagen
+      final originalImage = img.decodeImage(bytes);
+      if (originalImage == null) return image;
+
+      // Redimensionar si es necesario (máximo 800x800)
+      img.Image resizedImage = originalImage;
+      if (originalImage.width > 800 || originalImage.height > 800) {
+        resizedImage = img.copyResize(
+          originalImage,
+          width: originalImage.width > originalImage.height ? 800 : null,
+          height: originalImage.height > originalImage.width ? 800 : null,
+        );
+      }
+
+      // Comprimir como JPEG con calidad 70
+      final compressedBytes = img.encodeJpg(resizedImage, quality: 70);
+
+      // Crear archivo temporal
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/compressed_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await tempFile.writeAsBytes(compressedBytes);
+
+      return XFile(tempFile.path);
+
+    } catch (e) {
+      debugPrint('Error comprimiendo imagen: $e');
+      return image; // Retornar imagen original si falla la compresión
+    }
+  }
+
+  // También puedes agregar este método alternativo más simple para dispositivos muy antiguos
+  Future<void> _actualizarFotoPerfilSimple() async {
+    try {
+      final picker = ImagePicker();
+
+      // Usar configuración más compatible para dispositivos antiguos
+      final imagen = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 600,
+        maxHeight: 600,
+        imageQuality: 60,
+        requestFullMetadata: false, // Menos metadatos para mayor compatibilidad
+      );
+
+      if (imagen != null) {
+        await _procesarImagenSeleccionada(imagen);
+      }
+
+    } catch (e) {
+      // Si falla, intentar con configuración aún más básica
+      try {
+        final picker = ImagePicker();
+        final imagen = await picker.pickImage(
+          source: ImageSource.gallery,
+          imageQuality: 50,
+        );
+
+        if (imagen != null) {
+          await _procesarImagenSeleccionada(imagen);
+        }
+
+      } catch (e2) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Tu dispositivo no es compatible con esta función. Contacta soporte.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // MÉTODOS DE HABILIDADES
   Future<List<Map<String, dynamic>>> _buscarHabilidades(String query) async {
     try {
-      // Buscar habilidades que coincidan con la consulta
       final data = await supabase
           .schema('jobs')
           .from('habilidades')
@@ -175,19 +851,17 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     }
   }
 
-  // Crear una nueva habilidad en el catálogo
   Future<Map<String, dynamic>?> _crearNuevaHabilidad(String skillName) async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return null;
 
-      // Insertar nueva habilidad en el catálogo incluyendo user_id
       final result = await supabase
           .schema('jobs')
           .from('habilidades')
           .insert({
         'name': skillName,
-        'user_id': user.id  // Campo requerido
+        'user_id': user.id,
       })
           .select()
           .single();
@@ -199,13 +873,12 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     }
   }
 
-// Agregar una habilidad al usuario
   Future<void> _agregarHabilidadUsuario(int habilidadId, String nivel) async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      // Verificar si el usuario ya tiene esta habilidad
+      // Verificar si ya existe
       final existingSkills = await supabase
           .schema('jobs')
           .from('habilidades_usuario')
@@ -214,7 +887,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           .eq('user_id', user.id);
 
       if (existingSkills.isNotEmpty) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ya tienes esta habilidad en tu perfil')),
           );
@@ -222,27 +895,25 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
         return;
       }
 
-      // Insertar en la tabla intermedia
       await supabase
           .schema('jobs')
           .from('habilidades_usuario')
           .insert({
         'habilidad_id': habilidadId,
         'user_id': user.id,
-        'habilidades_id': habilidadId, // Parece que tu esquema requiere esto
-        'nivel': nivel
+        'habilidades_id': habilidadId,
+        'nivel': nivel,
       });
 
-      // Recargar habilidades del usuario
       await _cargarHabilidadesUsuario();
 
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Habilidad agregada correctamente')),
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error al agregar habilidad: $e')),
         );
@@ -250,13 +921,11 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     }
   }
 
-  // Eliminar una habilidad del usuario
   Future<void> _eliminarHabilidadUsuario(int habilidadId) async {
     try {
       final user = supabase.auth.currentUser;
       if (user == null) return;
 
-      // Eliminar de la tabla intermedia
       await supabase
           .schema('jobs')
           .from('habilidades_usuario')
@@ -264,118 +933,70 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           .eq('habilidad_id', habilidadId)
           .eq('user_id', user.id);
 
-      // Actualizar la lista de habilidades
       setState(() {
         userSkills.removeWhere((skill) => skill['id'] == habilidadId);
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Habilidad eliminada correctamente')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Habilidad eliminada correctamente')),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar habilidad: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar habilidad: $e')),
+        );
+      }
     }
   }
 
-  // Actualizar la descripción del usuario
-  Future<void> _actualizarDescripcion(String nuevaDescripcion) async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) return;
-
+  // MÉTODOS DE AUTENTICACIÓN
+  Future<void> logout() async {
     try {
-      await supabase
-          .schema('chats')
-          .from('users')
-          .update({'descripcion': nuevaDescripcion})
-          .eq('id', user.id);
+      await supabase.auth.signOut();
 
-      setState(() => descripcion = nuevaDescripcion);
+      setState(() {
+        isUserLoggedIn = false;
+        firstName = '';
+        lastName = '';
+        imageUrl = 'https://placehold.co/100';
+        descripcion = '';
+      });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Descripción actualizada correctamente')),
-      );
+      if (mounted) {
+        await Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => const AuthScreen(),
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al actualizar: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al cerrar sesión: $e')),
+        );
+      }
     }
   }
 
-  // Actualizar la foto de perfil
-  Future<void> _actualizarFotoPerfil() async {
-    final picker = ImagePicker();
-    final imagen = await picker.pickImage(source: ImageSource.gallery);
-
-    if (imagen == null) return;
-
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
-
-    try {
-      // Mostrar indicador de carga
-      await showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) => const Center(child: CircularProgressIndicator()),
-      );
-
-      // Ruta para almacenar la imagen en Storage
-      final fileName = '${user.id}-${DateTime.now().millisecondsSinceEpoch}${path.extension(imagen.path)}';
-      final storageUrl = 'user_profiles/$fileName';
-
-      // Subir imagen a Storage
-      final file = File(imagen.path);
-      await supabase.storage.from('avatars').upload(storageUrl, file);
-
-      // Obtener URL pública
-      final publicUrl = supabase.storage.from('avatars').getPublicUrl(storageUrl);
-
-      // Actualizar referencia en la base de datos
-      await supabase
-          .schema('chats')
-          .from('users')
-          .update({'imageUrl': publicUrl})
-          .eq('id', user.id);
-
-      // Actualizar estado
-      setState(() => imageUrl = publicUrl);
-
-      // Cerrar el diálogo de carga
-      if (context.mounted) Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto de perfil actualizada')),
-      );
-    } catch (e) {
-      // Cerrar el diálogo de carga en caso de error
-      if (context.mounted) Navigator.pop(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al actualizar foto: $e')),
-      );
-    }
-  }
-
-  // Diálogo para añadir habilidades
+  // MÉTODOS DE UI
   void _mostrarDialogoAgregarHabilidad() {
-    List<Map<String, dynamic>> searchResults = [];
-    bool isSearching = false;
-    String nivel = _nivelSeleccionado;
+    var searchResults = <Map<String, dynamic>>[];
+    var isSearching = false;
+    var nivel = 'Intermedio';
 
     showDialog(
       context: context,
       builder: (BuildContext context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
+        builder: (context, setDialogState) => AlertDialog(
           title: const Text('Agregar habilidad'),
           content: SizedBox(
             width: double.maxFinite,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Campo de búsqueda
                 TextField(
                   controller: _searchSkillController,
                   decoration: const InputDecoration(
@@ -385,20 +1006,18 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                   ),
                   onChanged: (value) async {
                     if (value.length >= 2) {
-                      setState(() => isSearching = true);
+                      setDialogState(() => isSearching = true);
                       final results = await _buscarHabilidades(value);
-                      setState(() {
+                      setDialogState(() {
                         searchResults = results;
                         isSearching = false;
                       });
                     } else {
-                      setState(() => searchResults = []);
+                      setDialogState(() => searchResults = []);
                     }
                   },
                 ),
                 const SizedBox(height: 15),
-
-                // Selector de nivel
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(
                     labelText: 'Nivel',
@@ -408,16 +1027,14 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                   items: nivelesHabilidad.map((nivelItem) => DropdownMenuItem<String>(
                     value: nivelItem,
                     child: Text(nivelItem),
-                  )).toList(),
+                  ),).toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      setState(() => nivel = value);
+                      setDialogState(() => nivel = value);
                     }
                   },
                 ),
                 const SizedBox(height: 15),
-
-                // Resultados de búsqueda
                 if (isSearching)
                   const Center(child: CircularProgressIndicator())
                 else if (searchResults.isNotEmpty)
@@ -445,32 +1062,24 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                         const SizedBox(height: 10),
                         ElevatedButton(
                           onPressed: () async {
-                            // Mostrar indicador de carga
-                            setState(() => isSearching = true);
-
+                            setDialogState(() => isSearching = true);
                             try {
-                              // Crear primero la habilidad
                               final newSkill = await _crearNuevaHabilidad(_searchSkillController.text);
-
-                              // Luego asociarla al usuario si se creó correctamente
                               if (newSkill != null) {
                                 await _agregarHabilidadUsuario(newSkill['id'], nivel);
                               }
-
                               if (context.mounted) {
                                 Navigator.pop(context);
                               }
                             } catch (e) {
-                              debugPrint('Error al crear y asignar habilidad: $e');
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(content: Text('Error: $e')),
                                 );
                               }
                             } finally {
-                              // Desactivar indicador de carga si el diálogo sigue abierto
                               if (context.mounted) {
-                                setState(() => isSearching = false);
+                                setDialogState(() => isSearching = false);
                               }
                             }
                           },
@@ -489,222 +1098,802 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           ],
         ),
       ),
-    ).then((_) {
-      // Limpiar el campo de búsqueda al cerrar el diálogo
-      _searchSkillController.clear();
-    });
+    ).then((_) => _searchSkillController.clear());
   }
+
+  void _navigateToSettings() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          userProfile: {
+            'firstName': firstName,
+            'lastName': lastName,
+            'email': supabase.auth.currentUser?.email,
+            'imageUrl': imageUrl,
+            'descripcion': descripcion,
+          },
+          onProfileUpdated: () {
+            _initializeData();
+          },
+        ),
+      ),
+    );
+
+    if (result == true) {
+      await _initializeData();
+    }
+  }
+
+  void _navigateToUpdateCategories(BuildContext context) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const UpdateCategoriesScreen(),
+      ),
+    );
+
+    if (result == true && widget.onProfileUpdated != null) {
+      widget.onProfileUpdated!();
+    }
+  }
+
+  Widget _buildNoSessionWidget() => Center(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.account_circle_outlined, size: 80, color: Colors.grey),
+        const SizedBox(height: 16),
+        const Text(
+          'No has iniciado sesión',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Inicia sesión para ver tu perfil',
+          style: TextStyle(fontSize: 16, color: Colors.grey),
+        ),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                fullscreenDialog: true,
+                builder: (context) => const AuthScreen(),
+              ),
+            );
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text('Iniciar Sesión'),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildSkillChip(String skill, {required String nivel, VoidCallback? onDeleted}) => Chip(
+      label: Text(skill, style: const TextStyle(color: Color(0xFF2563EB))),
+      backgroundColor: const Color(0xFFEFF6FF),
+      deleteIcon: const Icon(Icons.close, size: 16),
+      onDeleted: onDeleted,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Perfil'),
-    ),
-    backgroundColor: Colors.white,
-    body: isLoading
-        ? const Center(child: CircularProgressIndicator())
-        : SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Foto de perfil con opción para cambiar
-          Stack(
-            children: [
-              CircleAvatar(
-                radius: 50,
-                backgroundImage: NetworkImage(imageUrl ?? 'https://placehold.co/100'),
-                onBackgroundImageError: (_, __) => const Icon(Icons.error),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: _actualizarFotoPerfil,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
+      appBar: AppBar(
+        title: const Text('Perfil'),
+        centerTitle: false,
+        backgroundColor: Colors.blue,
+        elevation: 2,
+        shadowColor: Colors.blue.withOpacity(0.3),
+        actions: [
+          if (isUserLoggedIn)
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: _navigateToSettings,
+            ),
+        ],
+      ),
+      backgroundColor: Colors.white,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : !isUserLoggedIn
+          ? _buildNoSessionWidget()
+          : SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Foto de perfil
+            Stack(
+              children: [
+                CircleAvatar(
+                  radius: 50,
+                  backgroundImage: NetworkImage(imageUrl ?? 'https://placehold.co/100'),
+                  onBackgroundImageError: (_, __) => const Icon(Icons.error),
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _actualizarFotoPerfil,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Colors.blue,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
                     ),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Información básica
+            Text(
+              '$firstName $lastName',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 5),
+
+            // Calificaciones
+            isLoadingReviews
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.star, color: Colors.amber, size: 20),
+                const SizedBox(width: 5),
+                Text(
+                  averageRating.toStringAsFixed(1),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  '($totalReviews ${totalReviews == 1 ? 'review' : 'reviews'})',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Descripción
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Sobre mí', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: Icon(_isEditingDescription ? Icons.check : Icons.edit, size: 18),
+                  onPressed: () {
+                    if (_isEditingDescription) {
+                      _actualizarDescripcion(_descripcionController.text);
+                    }
+                    setState(() => _isEditingDescription = !_isEditingDescription);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+
+            _isEditingDescription
+                ? TextField(
+              controller: _descripcionController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Escribe algo sobre ti...',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.all(10),
+              ),
+            )
+                : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                descripcion ?? 'Sin descripción',
+                style: const TextStyle(color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 15),
+
+            // Habilidades
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Habilidades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: _mostrarDialogoAgregarHabilidad,
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ...userSkills.map((skill) => _buildSkillChip(
+                  skill['name'],
+                  nivel: skill['nivel'],
+                  onDeleted: () => _eliminarHabilidadUsuario(skill['id']),
+                ),),
+                if (userSkills.isEmpty)
+                  const Text('No hay habilidades añadidas', style: TextStyle(color: Colors.grey)),
+              ],
+            ),
+            _buildLocationSection(),
+            const SizedBox(height: 15),
+
+            // Categorías y oficios
+            if (_userCategories.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Especialidades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.edit),
+                    onPressed: () => _navigateToUpdateCategories(context),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ..._userCategories.map((category) {
+                final categoryId = category['id'] as int;
+                final oficios = _userOficios[categoryId] ?? [];
+
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.category, color: Colors.blue.shade700, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              category['name'],
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (oficios.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: oficios.map((oficio) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.blue.shade300),
+                            ),
+                            child: Text(
+                              oficio['name'],
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.blue.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 15),
+            ],
+
+            // Tabs
+            TabBar(
+              controller: _tabController,
+              labelColor: Colors.blue,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: Colors.blue,
+              tabs: const [
+                Tab(text: 'Trabajos'),
+                Tab(text: 'Comentarios'),
+                Tab(text: 'Ajustes'),
+              ],
+            ),
+
+            // Contenido de tabs
+            Container(
+              constraints: const BoxConstraints(minHeight: 300, maxHeight: 500),
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  SingleChildScrollView(child: _buildTrabajos()),
+                  isLoadingReviews
+                      ? const Center(child: CircularProgressIndicator())
+                      : SingleChildScrollView(child: _buildComentarios()),
+                  SingleChildScrollView(child: _buildAjustes()),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+  // WIDGETS DE TABS
+  Widget _buildTrabajos() {
+    if (_isLoadingTrabajos) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_trabajosRecientes.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            children: [
+              Icon(Icons.work_off, size: 48, color: Colors.grey[400]),
+              const SizedBox(height: 12),
+              Text(
+                'No tienes trabajos completados',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Aquí aparecerán los servicios que has prestado o contratado',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final dateFormat = DateFormat('d MMMM, yyyy', 'es_CL');
+    final moneyFormat = NumberFormat.currency(
+      locale: 'es_CL',
+      symbol: '\$',
+      decimalDigits: 0,
+    );
+
+    return Column(
+      children: [
+        ..._trabajosRecientes.map((trabajo) {
+          final fecha = trabajo['completed_at'] != null
+              ? DateTime.parse(trabajo['completed_at'])
+              : DateTime.now();
+
+          final esProveedor = trabajo['tipo'] == 'proveedor';
+          final titulo = trabajo['mostrar_como'] ?? trabajo['titulo'];
+          final monto = trabajo['amount'] != null
+              ? moneyFormat.format(trabajo['amount'])
+              : '';
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            elevation: 2,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListTile(
+              contentPadding: const EdgeInsets.all(16),
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: esProveedor ? Colors.green.shade100 : Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  esProveedor ? Icons.build : Icons.shopping_cart,
+                  color: esProveedor ? Colors.green.shade700 : Colors.blue.shade700,
+                  size: 24,
+                ),
+              ),
+              title: Text(
+                titulo,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    'Completado el ${dateFormat.format(fecha)}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 13,
+                    ),
+                  ),
+                  if (monto.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      monto,
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: esProveedor ? Colors.green.shade100 : Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  esProveedor ? 'Prestado' : 'Contratado',
+                  style: TextStyle(
+                    color: esProveedor ? Colors.green.shade700 : Colors.blue.shade700,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ),
-            ],
+            ),
+          );
+        }),
+        Padding(
+          padding: const EdgeInsets.only(top: 16.0),
+          child: TextButton.icon(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const TrabajosScreen()),
+              );
+            },
+            icon: const Icon(Icons.work),
+            label: const Text('Ver todos mis trabajos'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).primaryColor,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
           ),
-          const SizedBox(height: 10),
+        ),
+      ],
+    );
+  }
 
-          // Nombre desde Supabase
-          Text(
-            '$firstName $lastName',
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const Text('Usuario', style: TextStyle(color: Colors.grey)),
-          const SizedBox(height: 5),
-          const Row(
+  Widget _buildComentarios() {
+    debugPrint('🔍 _buildComentarios - userRating: $userRating');
+    debugPrint('🔍 _buildComentarios - totalReviews: ${userRating?.totalReviews}');
+    debugPrint('🔍 _buildComentarios - reviews length: ${userRating?.reviews.length}');
+
+    if (userRating == null || userRating!.totalReviews == 0) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.star, color: Colors.amber, size: 20),
-              SizedBox(width: 5),
-              Text('4.8', style: TextStyle(fontWeight: FontWeight.bold)),
-              SizedBox(width: 5),
-              Text('(124 reviews)', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Sección "Sobre mí" con edición inline
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Sobre mí',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              Icon(
+                Icons.comment_outlined,
+                size: 48,
+                color: Colors.grey[400],
               ),
-              IconButton(
-                icon: Icon(
-                    _isEditingDescription ? Icons.check : Icons.edit,
-                    size: 18
+              const SizedBox(height: 12),
+              Text(
+                'No hay comentarios disponibles',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[600],
                 ),
-                onPressed: () {
-                  if (_isEditingDescription) {
-                    // Guardar cambios
-                    _actualizarDescripcion(_descripcionController.text);
-                  }
-                  setState(() {
-                    _isEditingDescription = !_isEditingDescription;
-                  });
-                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Los comentarios de tus clientes aparecerán aquí',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[500],
+                ),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
-          const SizedBox(height: 5),
+        ),
+      );
+    }
 
-          // Campo de descripción editable/no editable
-          _isEditingDescription
-              ? TextField(
-            controller: _descripcionController,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Escribe algo sobre ti...',
-              border: OutlineInputBorder(),
-              contentPadding: EdgeInsets.all(10),
-            ),
-          )
-              : Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              descripcion ?? 'Sin descripción',
-              style: const TextStyle(color: Colors.grey),
-            ),
-          ),
-          const SizedBox(height: 15),
+    // ✅ MOSTRAR SOLO LOS 3 MÁS RECIENTES
+    final reviewsToShow = userRating!.reviews.take(3).toList();
 
-          // Skills con botón de añadir
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Habilidades',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.add_circle_outline),
-                onPressed: _mostrarDialogoAgregarHabilidad,
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ...userSkills.map((skill) => _buildSkillChip(
-                skill['name'],
-                nivel: skill['nivel'],
-                onDeleted: () => _eliminarHabilidadUsuario(skill['id']),
-              )).toList(),
-              if (userSkills.isEmpty)
-                const Text('No hay habilidades añadidas', style: TextStyle(color: Colors.grey)),
-            ],
-          ),
-          const SizedBox(height: 20),
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          ...reviewsToShow.asMap().entries.map((entry) {
+            final index = entry.key;
+            final review = entry.value;
+            final dateFormat = DateFormat('d MMM yyyy', 'es_CL');
 
-          // Tabs
-          TabBar(
-            controller: _tabController,
-            labelColor: Colors.blue,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: Colors.blue,
-            tabs: const [
-              Tab(text: 'Trabajos'),
-              Tab(text: 'Comentarios'),
-              Tab(text: 'Ajustes'),
-            ],
-          ),
-
-          // Contenido de los tabs
-          SizedBox(
-            height: 300,
-            child: TabBarView(
-              controller: _tabController,
+            return Column(
               children: [
-                _buildTrabajos(),
-                const Center(child: Text('Comentarios')),
-                const Center(child: Text('Ajustes')),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Header con usuario y fecha
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundImage: review.reviewerData?['imageUrl'] != null
+                                ? NetworkImage(review.reviewerData!['imageUrl'])
+                                : null,
+                            child: review.reviewerData?['imageUrl'] == null
+                                ? const Icon(Icons.person, size: 20)
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${review.reviewerData?['firstName'] ?? 'Usuario'} ${review.reviewerData?['lastName'] ?? ''}'.trim(),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  dateFormat.format(review.createdAt.toLocal()),
+                                  style: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Rating con estrellas
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.amber.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ...List.generate(5, (starIndex) {
+                                  return Icon(
+                                    starIndex < review.rating ? Icons.star : Icons.star_border,
+                                    color: Colors.amber,
+                                    size: 16,
+                                  );
+                                }),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${review.rating}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      // Comentario
+                      if (review.comment.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: Text(
+                            review.comment,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[800],
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                // Separador entre comentarios (excepto el último)
+                if (index < reviewsToShow.length - 1)
+                  const Divider(height: 1),
               ],
+            );
+          }).toList(),
+
+          // ✅ BOTÓN PARA VER TODAS LAS RESEÑAS (mostrar siempre si hay reseñas)
+          if (userRating!.totalReviews > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: TextButton.icon(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => ReviewsScreen(
+                        userId: supabase.auth.currentUser!.id,
+                        userRating: userRating!,
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.comment),
+                label: Text('Ver todas las reseñas (${userRating!.totalReviews})'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
         ],
-      ),
-    ),
-  );
-
-  // Lista de trabajos completados
-
-  Widget _buildTrabajos() => Column(
-    children: [
-      _buildTrabajoItem('Flete a La Tirana', 'Completado en Marzo 15, 2025'),
-      _buildTrabajoItem('Armado de andamios', 'Completado en Febrero 28, 2025'),
-      _buildTrabajoItem('Chofer camión aljibe', 'Completado en Enero 20, 2025'),
-    ],
-  );
-
-  Widget _buildSkillChip(String skill, {required String nivel, VoidCallback? onDeleted}) {
-    // Colores del mockup
-    final chipColor = Color(0xFFEFF6FF);
-    final textColor = Color(0xFF2563EB);
-
-    return Chip(
-      label: Text(skill, style: TextStyle(color: textColor)),
-      backgroundColor: chipColor,
-      deleteIcon: const Icon(Icons.close, size: 16),
-      onDeleted: onDeleted,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
       ),
     );
   }
 
-  // Widget para cada trabajo
-  Widget _buildTrabajoItem(String titulo, String fecha) => Card(
-    margin: const EdgeInsets.symmetric(vertical: 5),
-    child: ListTile(
-      title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(fecha),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: Colors.green.shade100,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: const Text('Completado', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+  Widget _buildLocationSection() => Column(
+    children: [
+      const SizedBox(height: 15),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            'Mi Ubicación',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_location),
+            onPressed: () {
+              if (kDebugMode) {
+                print('🔵 IconButton presionado - llamando _navigateToUpdateLocation');
+              }
+              _navigateToUpdateLocation();
+            },
+          ),
+        ],
       ),
-    ),
+      const SizedBox(height: 8),
+      GestureDetector(
+        onTap: () {
+          if (kDebugMode) {
+            print('🔵 Container presionado - llamando _navigateToUpdateLocation');
+          }
+          _navigateToUpdateLocation();
+        },
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.location_on,
+                color: Colors.blue.shade700,
+                size: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Ubicación de trabajo',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    _isLoadingLocation
+                        ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                        : Text(
+                      _currentLocationAddress,
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  );
+
+  Widget _buildAjustes() => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            'Cuenta',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+      ListTile(
+        leading: const Icon(Icons.person),
+        title: const Text('Información personal'),
+        subtitle: const Text('Actualiza tu nombre, email y contraseña'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: _navigateToSettings,
+      ),
+      ListTile(
+        leading: const Icon(Icons.work),
+        title: const Text('Especialidades'),
+        subtitle: const Text('Gestionar categorías y oficios'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => _navigateToUpdateCategories(context),
+      ),
+      const Divider(),
+      ListTile(
+        leading: const Icon(Icons.logout, color: Colors.red),
+        title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+        onTap: logout,
+      ),
+    ],
   );
 }

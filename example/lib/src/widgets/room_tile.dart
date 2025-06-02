@@ -23,29 +23,50 @@ class RoomTile extends StatelessWidget {
 
     // Determinar el tipo de sala y manejar según corresponda
     if (room.type == types.RoomType.direct) {
-      otherUserIndex = room.users.indexWhere(
-            (u) => u.id != SupabaseChatCore.instance.loggedSupabaseUser!.id,
-      );
-      if (otherUserIndex >= 0) {
-        otherUser = room.users[otherUserIndex];
+      final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
+      if (currentUserId != null) {
+        otherUserIndex = room.users.indexWhere(
+              (u) => u.id != currentUserId,
+        );
+        if (otherUserIndex >= 0) {
+          otherUser = room.users[otherUserIndex];
+          debugPrint('🔍 RoomTile: Otro usuario encontrado: "${otherUser.firstName} ${otherUser.lastName}" (${otherUser.id})');
+        } else {
+          debugPrint('❌ RoomTile: No se encontró otro usuario. Total usuarios: ${room.users.length}');
+          debugPrint('❌ RoomTile: Usuario actual: $currentUserId');
+          debugPrint('❌ RoomTile: Usuarios en room: ${room.users.map((u) => "${u.firstName} ${u.lastName} (${u.id})").join(", ")}');
+        }
       }
     }
 
     // Para el tipo offer_group, usamos la primera letra del nombre de la oferta
     final isOfferGroup = room.metadata != null && room.metadata!['offer_id'] != null;
-    final hasImage = room.imageUrl != null;
 
-    // Decidir qué nombre mostrar
-    var name = '';
+    // ✅ CORREGIDO: Para chats directos, usar datos del OTRO usuario
+    String? imageUrl;
+    String name = '';
+
     if (isOfferGroup) {
       name = room.metadata!['offer_name'] ?? room.name ?? '';
+      imageUrl = room.imageUrl;
+    } else if (room.type == types.RoomType.direct && otherUser != null) {
+      // ✅ USAR DATOS DEL OTRO USUARIO
+      final firstName = otherUser.firstName ?? '';
+      final lastName = otherUser.lastName ?? '';
+      name = '$firstName $lastName'.trim();
+      imageUrl = otherUser.imageUrl;
+
+      debugPrint('🖼️ RoomTile: Avatar para "$name", imagen: $imageUrl');
     } else {
       name = room.name ?? '';
+      imageUrl = room.imageUrl;
     }
+
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty && imageUrl != 'https://placehold.co/100';
 
     final Widget child = CircleAvatar(
       backgroundColor: hasImage ? Colors.transparent : color,
-      backgroundImage: hasImage ? NetworkImage(room.imageUrl!) : null,
+      backgroundImage: hasImage ? NetworkImage(imageUrl!) : null,
       radius: 20,
       child: !hasImage
           ? Text(
@@ -121,28 +142,46 @@ class RoomTile extends StatelessWidget {
   String _getRoomName() {
     // Manejar salas de tipo oferta
     if (room.metadata != null && room.metadata!['offer_id'] != null) {
-      return room.metadata!['offer_name'] ?? 'Oferta sin nombre';
+      final offerName = room.metadata!['offer_name'] ?? 'Oferta sin nombre';
+      debugPrint('🏷️ RoomTile: Nombre de oferta: "$offerName"');
+      return offerName;
     }
 
-    // Para salas directas, usar el nombre del otro usuario
     if (room.type == types.RoomType.direct) {
-      final otherUserIndex = room.users.indexWhere(
-            (u) => u.id != SupabaseChatCore.instance.loggedSupabaseUser!.id,
-      );
+      final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
 
-      if (otherUserIndex >= 0) {
-        final otherUser = room.users[otherUserIndex];
-        final firstName = otherUser.firstName ?? '';
-        final lastName = otherUser.lastName ?? '';
+      if (currentUserId != null) {
+        // ✅ CORREGIDO: Buscar al OTRO usuario (no al usuario actual)
+        final otherUserIndex = room.users.indexWhere(
+              (u) => u.id != currentUserId,
+        );
 
-        if (firstName.isNotEmpty || lastName.isNotEmpty) {
-          return '$firstName $lastName'.trim();
+        if (otherUserIndex >= 0) {
+          final otherUser = room.users[otherUserIndex];
+          final firstName = otherUser.firstName ?? '';
+          final lastName = otherUser.lastName ?? '';
+
+          if (firstName.isNotEmpty || lastName.isNotEmpty) {
+            final userName = '$firstName $lastName'.trim();
+            debugPrint('🏷️ RoomTile: Nombre del otro usuario: "$userName" (ID: ${otherUser.id})');
+            return userName;
+          } else {
+            debugPrint('⚠️ RoomTile: El otro usuario no tiene nombre');
+            return 'Usuario sin nombre';
+          }
+        } else {
+          debugPrint('❌ RoomTile: No se encontró otro usuario en chat directo');
+          debugPrint('❌ RoomTile: Total usuarios: ${room.users.length}');
+          debugPrint('❌ RoomTile: Usuario actual: $currentUserId');
+          debugPrint('❌ RoomTile: IDs en room: ${room.users.map((u) => u.id).join(", ")}');
+          return 'Chat incompleto';
         }
       }
     }
 
-    // Fallback al nombre de la sala
-    return room.name ?? '';
+    // Último fallback
+    debugPrint('🏷️ RoomTile: Usando fallback: ${room.name ?? "Chat sin nombre"}');
+    return room.name ?? 'Chat sin nombre';
   }
 
   @override
@@ -191,8 +230,7 @@ class RoomTile extends StatelessWidget {
                   child: Icon(
                     size: 20,
                     room.lastMessages!.first.status!.icon,
-                    color:
-                    room.lastMessages!.first.status == types.Status.seen
+                    color: room.lastMessages!.first.status == types.Status.seen
                         ? Colors.lightBlue
                         : null,
                   ),

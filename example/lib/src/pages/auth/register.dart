@@ -1,13 +1,14 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../main.dart';
+import '../../services/user_service.dart';
+import '../../widgets/user_profile.dart';
+import 'auth.dart';
+import 'register_categories_skills_step.dart';
+import 'register_personal_data_step.dart';
+import 'register_profile_step.dart';
+
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -17,16 +18,13 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  File? _selectedImage;
-  String? _imageUrl;
-  bool _imageValidated = false;
+  // Controladores de flujo
   bool _showProfileForm = false;
+  bool _showPersonalDataForm = false; // Nuevo paso
+  bool _showCategoriesSkillsForm = false;
 
-  // Variables para campos adicionales
-  final TextEditingController _firstNameController = TextEditingController();
-  final TextEditingController _lastNameController = TextEditingController();
-  final TextEditingController _descripcionController = TextEditingController();
-  String _role = 'user'; // Valor por defecto
+  // Datos de usuario que se van recopilando
+  final UserProfile _userProfile = UserProfile();
 
   // Controladores para el formulario de registro
   final TextEditingController _emailController = TextEditingController();
@@ -34,7 +32,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _confirmPasswordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  // Función para registrar el usuario básico
+  // Variables para controlar visibilidad de contraseñas
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  // Variables para validación de contraseña
+  bool _hasMinLength = false;
+  bool _hasUppercase = false;
+  bool _hasLowercase = false;
+  bool _hasNumber = false;
+  bool _hasSpecialChar = false;
+
+  // Servicio de usuario para operaciones con Supabase
+  final UserService _userService = UserService();
+
+  @override
+  void initState() {
+    super.initState();
+    _passwordController.addListener(_validatePassword);
+  }
+
+  void _validatePassword() {
+    final password = _passwordController.text;
+    if (mounted) { // ✅ Verificar que esté montado
+      setState(() {
+        _hasMinLength = password.length >= 8;
+        _hasUppercase = password.contains(RegExp(r'[A-Z]'));
+        _hasLowercase = password.contains(RegExp(r'[a-z]'));
+        _hasNumber = password.contains(RegExp(r'[0-9]'));
+        _hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+      });
+    }
+  }
+
+  bool get _isPasswordValid =>
+      _hasMinLength && _hasUppercase && _hasLowercase && _hasNumber && _hasSpecialChar;
+
+  Widget _buildCriteriaRow(String text, bool isValid) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        Icon(
+          isValid ? Icons.check_circle : Icons.radio_button_unchecked,
+          size: 16,
+          color: isValid ? Colors.green : Colors.grey,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: isValid ? Colors.green.shade700 : Colors.grey.shade600,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  // Función para registrar el usuario básico (primer paso)
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -44,340 +101,237 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
+      if (kDebugMode) {
+        print('DEBUG: Intentando registrar: $email');
+      }
+
+      // Guardar datos en el objeto UserProfile
+      _userProfile.email = email;
+
       // Mostrar indicador de carga
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) =>
-        const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      // Registrar el usuario en Supabase
-      final response = await Supabase.instance.client.auth.signUp(
-        email: email,
-        password: password,
-      );
-
-      // Cerrar diálogo de carga
-      Navigator.of(context).pop();
-
-      if (response.user != null) {
-        // Registro exitoso, ahora mostrar el formulario de perfil
-        setState(() {
-          _showProfileForm = true;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Error al crear la cuenta')),
-        );
-      }
-    } catch (e) {
-      // Cerrar diálogo de carga si hay excepción
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop();
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error durante el registro: ${e.toString()}')),
-      );
-    }
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final pickedFile = await ImagePicker().pickImage(
-          source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-
-        // Mostrar indicador de carga durante la subida
+      // NUNCA hacer caso y colocar la await, se queda dando vueltas
+      if (mounted) {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (BuildContext context) =>
-          const Center(
-            child: CircularProgressIndicator(),
-          ),
+          builder: (BuildContext context) => const Center(child: CircularProgressIndicator()),
         );
+      }
 
-        // Subir imagen
-        final uploadedUrl = await _uploadImageToSupabase(_selectedImage);
+      if (kDebugMode) {
+        print('DEBUG: Llamando a registerUser en UserService');
+      }
 
-        // Cerrar diálogo de carga
+      // Registrar el usuario en Supabase
+      final response = await _userService.registerUser(email, password);
+
+      if (kDebugMode) {
+        print("DEBUG: Respuesta recibida: ${response.user != null ? 'Usuario creado' : 'Respuesta vacía'}");
+      }
+
+      // Cerrar diálogo de carga
+      if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
-
-        if (uploadedUrl != null) {
-          setState(() {
-            _imageUrl = uploadedUrl;
-            _imageValidated = true;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Imagen subida correctamente')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error al subir la imagen')),
-          );
-        }
-      }
-    } catch (e) {
-      // Cerrar diálogo de carga si hay excepción
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(
-            'Error al seleccionar/subir imagen: ${e.toString()}')),
-      );
-    }
-  }
-
-  Future<String?> _uploadImageToSupabase(File? imageFile) async {
-    if (imageFile == null) return null;
-
-    try {
-      // Modificado para incluir el prefijo 'register/' según la política establecida
-      final fileName = 'register/profile_${DateTime
-          .now()
-          .millisecondsSinceEpoch}.png';
-      final bytes = await imageFile.readAsBytes();
-
-      final supabaseClient = Supabase.instance.client;
-
-      // Subir la imagen
-      final response = await supabaseClient.storage.from('profile_images')
-          .uploadBinary(
-        fileName,
-        bytes,
-        fileOptions: const FileOptions(upsert: true),
-      );
-
-      if (kDebugMode) {
-        print('Upload response: $response');
       }
 
-      // Obtener la URL pública
-      final publicUrl = supabaseClient.storage.from('profile_images')
-          .getPublicUrl(fileName);
-
-      if (kDebugMode) {
-        print('Image URL: $publicUrl');
-      }
-
-      return publicUrl;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Upload error: $e');
-      }
-      return null;
-    }
-  }
-
-  Future<void> _completeProfile() async {
-    try {
-      // Validaciones iniciales
-      if (_selectedImage == null || _imageUrl == null || !_imageValidated) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Debes seleccionar y subir una imagen de perfil')),
-        );
-        return;
-      }
-
-      final firstName = _firstNameController.text.trim();
-      final lastName = _lastNameController.text.trim();
-      final descripcion = _descripcionController.text.trim();
-
-      if (firstName.isEmpty || lastName.isEmpty || descripcion.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Completa todos los campos requeridos')),
-        );
-        return;
-      }
-
-      // Mostrar indicador de carga SIN await
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) =>
-        const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-
-      final supabase = Supabase.instance.client;
-      final user = supabase.auth.currentUser;
-
-      if (kDebugMode) {
-        print('Verificando usuario: ${user?.id}');
-        print('Email verificado: ${user?.emailConfirmedAt}');
-        print('Usuario metadata: ${user?.userMetadata}');
-      }
-
-      if (user == null) {
-        Navigator.of(context).pop(); // Cerrar loading
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se encontró una sesión activa')),
-        );
-        return;
-      }
-
-      // Actualizar metadatos del usuario en auth
-      await supabase.auth.updateUser(
-        UserAttributes(
-          data: {
-            'first_name': firstName,
-            'last_name': lastName,
-            'image_url': _imageUrl ?? '',
-            'descripcion': descripcion,
-            'role': _role,
-          },
-        ),
-      );
-
-      if (kDebugMode) {
-        print('Metadatos de usuario actualizados');
-      }
-
-      // Actualizar también en SupabaseChatCore
-      await SupabaseChatCore.instance.updateUser(
-        types.User(
-          id: user.id,
-          firstName: firstName,
-          lastName: lastName,
-          imageUrl: _imageUrl,
-        ),
-      );
-
-      if (kDebugMode) {
-        print('SupabaseChatCore actualizado');
-      }
-
-      // Crear los datos para inserción
-      final now = DateTime
-          .now()
-          .millisecondsSinceEpoch;
-      final userData = {
-        'id': user.id,
-        'firstName': firstName,
-        'lastName': lastName,
-        'imageUrl': _imageUrl,
-        'descripcion': descripcion,
-        'role': _role,
-        'createdAt': now,
-        'updatedAt': now,
-        'lastSeen': now,
-      };
-
-      if (kDebugMode) {
-        print('Intentando insertar con datos: $userData');
-      }
-
-      try {
-        // Intento 1: Insertar directamente en la tabla
-        try {
-          final response = await supabase
-              .from('chats.users') // Ruta explícita al esquema.tabla
-              .insert(userData)
-              .select();
-
-          if (kDebugMode) {
-            print('Inserción exitosa: $response');
-          }
-        } catch (e1) {
-          if (kDebugMode) {
-            print('Error inserción en chats.users: $e1');
-          }
-
-          // Intento 2: Usar RPC correctamente
-          try {
-            if (kDebugMode) {
-              print('Intentando con RPC...');
-            }
-
-            // CORREGIDO: Pasar los parámetros como JSON con nombres según la función
-            final response = await supabase.rpc(
-              'insert_into_chats_users',
-              params: {
-                'id': user.id,
-                'firstName': firstName,
-                'lastName': lastName,
-                'imageUrl': _imageUrl,
-                'descripcion': descripcion,
-                'role': _role,
-                'createdAt': now,
-                'updatedAt': now,
-                'lastSeen': now,
-              },
-            );
-
-            if (kDebugMode) {
-              print('Inserción mediante RPC exitosa: $response');
-            }
-          } catch (rpcError) {
-            if (kDebugMode) {
-              print('Error en RPC: $rpcError');
-            }
-
-            // Intento 3: Insertar directamente en 'users' (por si acaso)
-            try {
-              if (kDebugMode) {
-                print('Intentando insertar en tabla users...');
-              }
-
-              final response = await supabase
-                  .from('users')
-                  .insert(userData)
-                  .select();
-
-              if (kDebugMode) {
-                print('Inserción en users exitosa: $response');
-              }
-            } catch (e3) {
-              if (kDebugMode) {
-                print('Error en inserción a users: $e3');
-              }
-              throw 'No se pudo guardar el perfil después de múltiples intentos';
-            }
-          }
-        }
-      } catch (e) {
+      if (response.user != null) {
         if (kDebugMode) {
-          print('Error general de inserción: $e');
+          print('DEBUG: Registro exitoso, usuario ID: ${response.user!.id}');
         }
-        throw e;
+
+        if (mounted) { // ✅ Verificar que esté montado
+          setState(() {
+            _showProfileForm = true;
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Error al crear la cuenta: respuesta vacía')),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('DEBUG: Error durante el registro: $e');
       }
 
-      // Cerrar diálogo y navegar a la página de inicio
-      Navigator.of(context).pop(); // Cerrar loading
-
-      await Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => const MainScreen()),
-      );
-    } catch (e) {
-      // Asegurarse de cerrar el diálogo en caso de error
-      if (Navigator.of(context).canPop()) {
+      // Cerrar diálogo de carga si hay excepción
+      if (mounted && Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
 
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error durante el registro: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
+  // Método para avanzar al tercer paso (datos personales)
+  void _onProfileCompleted(UserProfile profile) {
+    if (mounted) { // ✅ Verificar que esté montado
+      setState(() {
+        _userProfile.firstName = profile.firstName;
+        _userProfile.lastName = profile.lastName;
+        _userProfile.imageUrl = profile.imageUrl;
+        _userProfile.descripcion = profile.descripcion;
+        _userProfile.role = profile.role;
+
+        _showProfileForm = false;
+        _showPersonalDataForm = true;
+      });
+    }
+  }
+
+  // Método para avanzar al cuarto paso (categorías y habilidades)
+  void _onPersonalDataCompleted() {
+    if (mounted) {
+      setState(() {
+        _showPersonalDataForm = false;
+
+        // Verificar el rol del usuario
+        if (_userProfile.role == 'worker') {
+          // Si es trabajador, continuar al paso de categorías y habilidades
+          _showCategoriesSkillsForm = true;
+        } else {
+          // Si es usuario regular, finalizar el registro directamente
+          _onUserRegistrationCompleted();
+        }
+      });
+    }
+  }
+
+  // Método para finalizar el registro - VERSIÓN SÚPER SIMPLIFICADA
+  Future<void> _onRegistrationCompleted() async {
+    if (kDebugMode) {
+      print('🎯 _onRegistrationCompleted() INICIADO');
+    }
+
+    if (!mounted) {
       if (kDebugMode) {
-        print('Error completo en _completeProfile: $e');
+        print('❌ Widget no montado, abortando');
+      }
+      return;
+    }
+
+    try {
+      if (kDebugMode) {
+        print('⏳ Esperando 1 segundo para asegurar sesión...');
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content: Text('Error al actualizar el perfil: ${e.toString()}')),
-      );
+      // Aumentar el tiempo de espera
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      if (!mounted) {
+        if (kDebugMode) {
+          print('❌ Widget se desmontó durante la espera');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        print('🏠 Iniciando navegación a MainScreen...');
+      }
+
+      // Navegación con verificación adicional
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+
+        if (kDebugMode) {
+          print('✅ Navegación iniciada exitosamente');
+        }
+      }
+
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en _onRegistrationCompleted: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de navegación: $e')),
+        );
+
+        // Fallback: navegar a AuthScreen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
+    }
+  }
+
+  // Método para finalizar registro de usuario regular (sin categorías/habilidades)
+  Future<void> _onUserRegistrationCompleted() async {
+    if (kDebugMode) {
+      print('🎯 _onUserRegistrationCompleted() INICIADO');
+    }
+
+    if (!mounted) {
+      if (kDebugMode) {
+        print('❌ Widget no montado, abortando');
+      }
+      return;
+    }
+
+    try {
+      if (kDebugMode) {
+        print('💾 Actualizando perfil final de usuario...');
+      }
+
+      // Solo actualizar el perfil básico sin categorías ni habilidades
+      await _userService.updateUserProfile(_userProfile);
+
+      if (kDebugMode) {
+        print('⏳ Esperando 1 segundo para asegurar sesión...');
+      }
+
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      if (!mounted) {
+        if (kDebugMode) {
+          print('❌ Widget se desmontó durante la espera');
+        }
+        return;
+      }
+
+      if (kDebugMode) {
+        print('🏠 Iniciando navegación a MainScreen...');
+      }
+
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const MainScreen()),
+        );
+
+        if (kDebugMode) {
+          print('✅ Navegación iniciada exitosamente');
+        }
+      }
+
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error en _onUserRegistrationCompleted: $e');
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de navegación: $e')),
+        );
+
+        // Fallback: navegar a AuthScreen
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const AuthScreen()),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _descripcionController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -386,239 +340,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_showProfileForm) {
-      // Pantalla de perfil modificada con fondo blanco uniforme
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Completa tu perfil'),
-          automaticallyImplyLeading: false, // No mostrar botón de retroceso
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-        ),
-        body: Container(
-          padding: const EdgeInsets.all(20),
-          color: Colors.white, // Fondo blanco uniforme
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 20),
-                // Sección de foto de perfil
-                const Text(
-                  'Foto de perfil',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child: _selectedImage != null
-                      ? Column(
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.blue, width: 3),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(75),
-                          child: Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      ElevatedButton.icon(
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.photo_camera),
-                        label: const Text('Cambiar foto'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ],
-                  )
-                      : Column(
-                    children: [
-                      Container(
-                        width: 150,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.blue, width: 3),
-                        ),
-                        child: const Icon(
-                          Icons.person,
-                          size: 80,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-                      ElevatedButton.icon(
-                        onPressed: _pickImage,
-                        icon: const Icon(Icons.add_a_photo),
-                        label: const Text('Seleccionar foto'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20,
-                              vertical: 12),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (!_imageValidated)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 8.0),
-                    child: Text(
-                      '* La foto de perfil es obligatoria',
-                      style: TextStyle(color: Colors.red, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                const SizedBox(height: 30),
-                // Sección de información personal
-                const Text(
-                  'Información personal',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: _firstNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nombre',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _lastNameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Apellido',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: _descripcionController,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Descripción',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.description),
-                    hintText: 'Cuéntanos un poco sobre ti...',
-                  ),
-                ),
-                const SizedBox(height: 30),
-                // Sección de selección de rol
-                const Text(
-                  'Selecciona tu rol',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _role = 'user';
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _role == 'user'
-                              ? Colors.blue
-                              : Colors.grey[300],
-                          foregroundColor: _role == 'user'
-                              ? Colors.white
-                              : Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(_role == 'user' ? Icons.person : Icons
-                                .person_outline, size: 30),
-                            const SizedBox(height: 8),
-                            const Text('Usuario'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 15),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() {
-                            _role = 'worker';
-                          });
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _role == 'worker'
-                              ? Colors.blue
-                              : Colors.grey[300],
-                          foregroundColor: _role == 'worker'
-                              ? Colors.white
-                              : Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(_role == 'worker' ? Icons.work : Icons
-                                .work_outline, size: 30),
-                            const SizedBox(height: 8),
-                            const Text('Trabajador'),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 40),
-                // Botón para completar el perfil
-                SizedBox(
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _completeProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                    child: const Text(
-                      'COMPLETAR PERFIL',
-                      style: TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
-        ),
+    if (_showCategoriesSkillsForm) {
+      // CUARTO PASO: Solo para trabajadores
+      return RegisterCategoriesSkillsStep(
+        userProfile: _userProfile,
+        onCompleted: _onRegistrationCompleted, // Para trabajadores
+      );
+    } else if (_showPersonalDataForm) {
+      // TERCER PASO: Datos personales (para ambos roles)
+      return RegisterPersonalDataStep(
+        userProfile: _userProfile,
+        onCompleted: _onPersonalDataCompleted, // Este método maneja el flujo según el rol
+      );
+    } else if (_showProfileForm) {
+      // SEGUNDO PASO: Formulario de perfil (para ambos roles)
+      return RegisterProfileStep(
+        userProfile: _userProfile,
+        onCompleted: _onProfileCompleted,
       );
     } else {
-      // Pantalla de registro con fondo blanco uniforme
+      // PRIMER PASO: Formulario de registro inicial
       return Scaffold(
         appBar: AppBar(
           title: const Text('Registro'),
@@ -627,7 +368,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
         body: Container(
           padding: const EdgeInsets.all(20),
-          color: Colors.white, // Fondo blanco uniforme
+          color: Colors.white,
           child: Center(
             child: SingleChildScrollView(
               child: Column(
@@ -635,8 +376,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 children: [
                   // Logo
                   Image.asset(
-                    'assets/flyer_logo.png',
-                    height: 100,
+                    'assets/logo.png',
+                    height: 250,
                   ),
                   const SizedBox(height: 20),
                   const Text(
@@ -669,41 +410,96 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             // Validación básica de email
                             if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
                                 .hasMatch(value)) {
-                              return 'Ingresa un correo válido';
+                            return 'Ingresa un correo válido';
                             }
                             return null;
-                          },
+                            },
                         ),
                         const SizedBox(height: 16),
-                        // Campo de contraseña
+                        // Campo de contraseña con toggle de visibilidad
                         TextFormField(
                           controller: _passwordController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Contraseña',
-                            prefixIcon: Icon(Icons.lock),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                if (mounted) { // ✅ Verificar que esté montado
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                }
+                              },
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
-                          obscureText: true,
+                          obscureText: _obscurePassword,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor ingresa una contraseña';
                             }
-                            if (value.length < 6) {
-                              return 'La contraseña debe tener al menos 6 caracteres';
+                            if (!_isPasswordValid) {
+                              return 'La contraseña no cumple con los requisitos de seguridad';
                             }
                             return null;
                           },
                         ),
                         const SizedBox(height: 16),
-                        // Campo para confirmar contraseña
+
+                        // Criterios de validación de contraseña
+                        if (_passwordController.text.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Requisitos de contraseña:',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                _buildCriteriaRow('Al menos 8 caracteres', _hasMinLength),
+                                _buildCriteriaRow('Una letra mayúscula', _hasUppercase),
+                                _buildCriteriaRow('Una letra minúscula', _hasLowercase),
+                                _buildCriteriaRow('Un número', _hasNumber),
+                                _buildCriteriaRow('Un carácter especial', _hasSpecialChar),
+                              ],
+                            ),
+                          ),
+
+                        const SizedBox(height: 16),
+                        // Campo para confirmar contraseña con toggle de visibilidad
                         TextFormField(
                           controller: _confirmPasswordController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Confirmar contraseña',
-                            prefixIcon: Icon(Icons.lock_outline),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
+                              ),
+                              onPressed: () {
+                                if (mounted) { // ✅ Verificar que esté montado
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                }
+                              },
+                            ),
+                            border: const OutlineInputBorder(),
                           ),
-                          obscureText: true,
+                          obscureText: _obscureConfirmPassword,
                           validator: (value) {
                             if (value == null || value.isEmpty) {
                               return 'Por favor confirma tu contraseña';
@@ -731,7 +527,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: const Text(
                               'REGISTRARSE',
                               style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                                fontSize: 16, fontWeight: FontWeight.bold,),
                             ),
                           ),
                         ),

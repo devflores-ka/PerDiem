@@ -1,299 +1,300 @@
-<br>
+# Perdiem
 
 <p align="center">
-  <a href="https://pub.dartlang.org/packages/flutter_supabase_chat_core">
-    <img alt="Pub" src="https://img.shields.io/pub/v/flutter_supabase_chat_core" />
+  <a href="https://github.com/devflores-ka/PerDiem">
+    <img alt="Flutter" src="https://img.shields.io/static/v1?label=flutter&message=perdiem&color=blue&style=for-the-badge&logo=Flutter" />
   </a>
-  <a href="https://pub.dev/packages/flutter_supabase_chat_core/score">
-    <img alt="Pub" src="https://img.shields.io/pub/points/flutter_supabase_chat_core" />
+  <a href="https://github.com/devflores-ka/PerDiem/issues">
+  <img alt="Issues" src="https://img.shields.io/badge/issues-private-blue" />
   </a>
-  <a href="https://pub.dev/packages/flutter_supabase_chat_core/score">
-    <img alt="Pub" src="https://img.shields.io/pub/likes/flutter_supabase_chat_core" />
-  </a>
-  <a href="https://github.com/insideapp-srl/flutter_supabase_chat_core/actions?query=workflow%3Abuild">
-    <img alt="Build Status" src="https://github.com/insideapp-srl/flutter_supabase_chat_core/workflows/build/badge.svg" />
-  </a>
-  <a href="https://www.codefactor.io/repository/github/insideapp-srl/flutter_supabase_chat_core">
-    <img alt="CodeFactor" src="https://www.codefactor.io/repository/github/insideapp-srl/flutter_supabase_chat_core/badge" />
-  </a>
+  <a href="https://github.com/devflores-ka/PerDiem/blob/main/LICENSE">
+  <img alt="Licencia propietaria" src="https://img.shields.io/badge/licencia-Propietaria-red" />
+</a>
 </p>
-<p align="center">
-  <a href="https://github.com/insideapp-srl/flutter_supabase_chat_core">
-    <img alt="Pub" src="https://img.shields.io/static/v1?label=flutter&message=flutter_supabase_chat_core&color=red??style=for-the-badge&logo=GitHub" />
-  </a>
-  <a href="https://github.com/insideapp-srl/flutter_supabase_chat_core/issues">
-    <img alt="Build Status" src="https://img.shields.io/github/issues/insideapp-srl/flutter_supabase_chat_core" />
-  </a>
-  <a href="https://github.com/insideapp-srl/flutter_supabase_chat_core/blob/main/LICENSE">
-    <img alt="CodeFactor" src="https://img.shields.io/github/license/insideapp-srl/flutter_supabase_chat_core" />
-  </a>
-</p>
+
+## 🚀 Conecta oferentes y demandantes de servicios en Chile
 
 <p align="center">
-  <a href="https://flyer.chat">
-    <img src="https://flyer.chat/assets/logo-dark.svg" width="288px" alt="Flyer Chat logo" />
-  </a>
+  <img src="assets/logo.png" alt="Perdiem Logo" width="150" />
 </p>
 
-<h1 align="center">Flutter Supabase Chat Core</h1>
-<h2 align="center">Add chat support to your app in 10 minutes!</h2>
-<br>
-
-<p align="center">
-    This project is an implementation of the <a href="https://pub.dev/packages/flutter_chat_types">flutter_chat_types</a>, <a href="https://pub.dev/packages/flutter_chat_ui">flutter_chat_ui</a> packages based on a backend created with <a href="https://supabase.com/">Supabase</a>.
-</p>
-
-<br>
-
-<p align="center">
-  Actively maintained, community-driven Supabase BaaS for chat applications with an optional <a href="https://pub.dev/packages/flutter_chat_ui">chat UI</a>.
-</p>
-
-<br>
-
-<p align="center">
-    ⚠️⚠️ This project has been optimized to support scalability, but careful evaluation is recommended before integrating it into large-scale projects, considering specific requirements and available resources. ⚠️⚠️
-</p>
-
-<br>
-
-<p align="center">
-  <a href="https://flyer.chat">
-    <img alt="Chat Image" src="https://user-images.githubusercontent.com/14123304/193468140-91942302-2332-4cb1-8504-61b8892d828b.jpg" />
-  </a>
-</p>
-
-<br>
-
-Have you ever wanted to implement a chat in your application? Do you think it's difficult and complex?
-
-Try this, thanks to the magnificent [Supabase](https://supabase.com/) platform and the [Flutter Chat UI](https://pub.dev/packages/flutter_chat_ui) package, you can achieve it in just a few minutes and effortlessly.
+**Perdiem** es una aplicación móvil orientada a la economía colaborativa que facilita la conexión entre personas que ofrecen y demandan servicios comunes como gasfitería, albañilería, fletes, entre otros. Promoviendo el trabajo independiente y la inclusión digital en Chile.
 
 ---
 
-Flyer Chat is a platform for creating in-app chat experiences using Flutter. This repository contains Supabase BaaS implementation for Flutter. We are also working on our more advanced SaaS and self-hosted solutions.
+## 📱 ¿Qué es Perdiem?
 
-* **Free, open-source and community-driven**. We offer no paid plugins and strive to create an easy-to-use, almost drop-in chat experience for any application. Contributions are more than welcome! Please read our [Contributing Guide](CONTRIBUTING.md).
+Perdiem nace para cubrir la necesidad de una plataforma nacional que conecte eficientemente a trabajadores independientes con potenciales clientes en Chile. Con enfoque inicial en Iquique y alcance nacional, la app busca eliminar barreras de acceso, reducir la informalidad y dar mayor visibilidad a quienes viven de estos oficios.
 
-* **Chat UI agnostic**. You can choose the chat UI you prefer. But if you don't have one, we provide our own free and open-source [Flutter Chat UI](https://pub.dev/packages/flutter_chat_ui), which can be used to create a working chat in minutes.
+### ✨ Características principales
 
-* **Easy to use**. Returns streams of data for messages, rooms and users. [Supabase Security Rules](https://supabase.com/docs/guides/database/postgres/row-level-security) control access to the data. Check our [documentation](https://flutter-supabase-chat-core.insideapp.it/guides/supabase-security) for the info.
+- **🏠 Inicio**: Pantalla principal con listado público de trabajos disponibles
+- **📝 Publicación de ofertas**: Formulario para crear y publicar servicios
+- **🗺️ Búsqueda geolocalizada**: Mapa interactivo con filtros por categoría
+- **💬 Mensajería integrada**: Chat automático entre oferentes y demandantes
+- **📊 Gestión de trabajos**: Seguimiento de ofertas y estados de trabajo
+- **👤 Perfil de usuario**: Gestión de información, habilidades y preferencias
+- **💳 Opciones de pago**: Efectivo y pagos digitales integrados
+- **🔒 Verificación de usuarios**: Sistema de validación de identidad
 
-## Getting Started
+---
 
-The example project that you find in the package repository allows you to have a cross-platform chat app in just a few minutes.
+## 🛠️ Stack Tecnológico y Dependencias Clave
 
-### Requirements
+- **Frontend**: Flutter (Dart)
+- **Backend**: Supabase (`supabase_flutter`)
+- **Mapas**: `mapbox_maps_flutter`, `google_maps_flutter`, `flutter_map`
+- **Geolocalización**: `geolocator`
+- **Mensajería**: `flutter_chat_ui`, `flutter_chat_types`
+- **Autenticación y Login**: `flutter_login`
+- **HTTP y Networking**: `dio`, `http`
+- **Almacenamiento y Archivos**: `file_picker`, `file_saver`, `path_provider`, `open_filex`
+- **Firebase**: `firebase_core`, `firebase_messaging`
+- **Utilidades**: `shared_preferences`, `provider`, `intl`, `timeago`
+- **Otros**: `flutter_svg`, `image_picker`, `permission_handler`, `url_launcher`, `share_plus`
 
-`Dart >=2.19.0` and `Flutter >=3.0.0`, [Supabase](https://supabase.com) project.
+---
 
-### Create a Supabase project
+## 📋 Requisitos
 
-1. Install Supabase CLI: [Official documentation](https://supabase.com/docs/guides/cli/getting-started)
-2. Open your bash
-3. Login with Supabase:
+- `Dart >=2.19.0`
+- `Flutter >=3.0.0`
+- Proyecto de [Supabase](https://supabase.com)
+- Cuenta de [Mapbox](https://mapbox.com)
+
+---
+
+## 🚀 Configuración inicial
+
+### 1. Crear proyecto Supabase
 
 ```bash
+# Instalar Supabase CLI
+npm install -g supabase
+
+# Iniciar sesión
 supabase login
-```
 
-4. Create new project (For example `demo-chat`):
+# Crear nuevo proyecto
+supabase projects create perdiem-app
 
-```bash
-supabase projects create demo-chat
-```
-
-5. Select your organization
-6. Select an region
-7. Insert a secure password for new Postgres database (Save this in a secure location)
-8. Obtain your `REFERENCE ID` (After command select your project, for example `demo-chat`):
-
-```bash
+# Obtener referencia del proyecto
 supabase projects list
-```
 
-9. Obtain your `anon` key (After command select your project, for example `demo-chat`):
-
-```bash
+# Obtener claves API
 supabase projects api-keys
-```
-10. Edit `example project` file `example/lib/supabase_options.dart`, insert your project `{{your_project_reference_id}}` and `{{supabase_anon_key}}`
 
-#### Prepare Supabase project
 
-Inside the example project (`example/utils`) there is a script, running the latter will automatically configure the Supabase project, creating tables, security rules, buckets and everything that is necessary for the example project to function.
+### 2. Configurar el proyecto Flutter
 
-In order to run the script you need to be aware of the following information about your Supabase project:
-
-- `host` : Project host
-- `port` : Database port
-- `database` : Database name
-- `user` : Database user
-- `password` : Database password
-
-This information, except the password which is provided only during the creation of the database (if necessary, you can use the password reset function of your database to obtain it), can be found very easily from the Dashboard of your Supabase project:
-
-![Supabase dashboard database info](doc/static/img/supabase-project-credential.png "Database info")
-
-#### Running prepare script
-
-Below are the commands for running the scripts (During execution you will be asked for the password for your database user):
-
->   Required `psql` installed -> [Official documentation](https://www.postgresql.org/download/)
-
-#### Linux
-
+1. Clona el repositorio:
 ```bash
-cd ./example/utils/
-./prepare.sh -h "your-postgres-host" -p your-postgres-port -d "your-postgres-database-name" -U "your-postgres-user"
+git clone https://github.com/lmaglotflores/perdiem.git
+cd perdiem
 ```
 
-#### Windows
+2. Instala las dependencias:
+```bash
+flutter pub get
+```
 
+3. Configura las variables de entorno en `lib/config/supabase_config.dart`:
+```dart
+const String supabaseUrl = 'YOUR_SUPABASE_URL';
+const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+```
+
+### 3. Configurar base de datos
+
+Ejecuta los scripts de preparación para configurar automáticamente las tablas, reglas de seguridad y buckets necesarios:
+
+#### Linux/macOS:
+```bash
+cd ./scripts/
+./setup_database.sh -h "your-postgres-host" -p your-postgres-port -d "your-postgres-database" -U "your-postgres-user"
+```
+
+#### Windows:
 ```powershell
-cd .\example\utils\
-.\prepare.ps1 -hostname "your-postgres-host" -port your-postgres-port -database "your-postgres-database-name" -user "your-postgres-user"
+cd .\scripts\
+.\setup_database.ps1 -hostname "your-postgres-host" -port your-postgres-port -database "your-postgres-database" -user "your-postgres-user"
 ```
 
-after running the database preparation script. you need to change the database schema exposure setting by adding the `chats` schema (from the supabase dashboard):
+### 4. Configurar esquemas en Supabase
 
-![Supabase dashboard schema exposure setting](doc/static/img/supabase-schema-exposure-setting.png "Schema exposure setting")
+Desde el dashboard de Supabase, agrega el esquema `services` a la exposición de la API:
 
-Optional (**Only for test**): Disable email verification and save the configuration (To speed up testing and allow user registration in just one click, it is advisable to disable mailbox verification):
+1. Ve a **Settings** > **API**
+2. En **Schema exposure**, agrega `chats` y `jobs`
+3. Guarda la configuración
 
-![Supabase dashboard disable email verification](doc/static/img/supabase-disable-confirm-email.png "Disable email verification")
+---
 
-Read our [documentation](https://flutter-supabase-chat-core.insideapp.it) or see the [example](https://github.com/insideapp-srl/flutter_supabase_chat_core/tree/main/example) project. To run the example project you need to have your own [Supabase](https://supabase.com/dashboard/projects) project and then follow [Add Supabase to your Flutter app](https://supabase.com/docs/reference/dart/initializing), override `example/lib/supabase_options.dart`, don't commit it though 😉
+## 🏗️ Arquitectura de la base de datos
 
-After all of this is done you will need to register a couple of users and the example app will automatically suggest email and password on the register screen, default password is `Qawsed1-`. To set up [Supabase Security Rules](https://supabase.com/docs/guides/database/postgres/row-level-security) so users can see only the data they should see, continue with our [documentation](https://flutter-supabase-chat-core.insideapp.it/).
+### Tablas principales
 
-## Package Widgets
+#### `chats.users`
+- Información de usuarios registrados
+- Habilidades y especialidades
+- Estado de verificación
 
-This package implements some purely logical widgets (Without implementation of a specific UI). These wedgets make it easy to implement some chat-related logic without any effort.
+#### `jobs.offers`
+- Ofertas de trabajo publicadas
+- Detalles del servicio requerido
+- Ubicación referencial
 
-### UserOnlineStateObserver
+#### `jobs.offer_applicants`
+- Postulaciones a ofertas
+- Estado de aplicación
+- Relación oferente-demandante
 
-This widget should be placed in the widget tree as soon as possible, this is because this component is responsible for checking and updating the status of the user who logged into the app. When the app is in the foreground other users are notified of the online status, vice versa when the app is closed.
+#### `chats.messages`
+- Sistema de mensajería
+- Comunicación entre usuarios
+- Historial de conversaciones
 
-```dart
-@override
-Widget build(BuildContext context) =>
-    MaterialApp(
-      ...
-      home: const UserOnlineStateObserver(
-        child: RoomsPage(),
-      ),
-    );
-```
+#### `jobs.reviews`
+- Sistema de calificaciones
+- Reseñas de servicios completados
+- Reputación de usuarios
 
-### UserOnlineStatusWidget
+---
 
-This server widget to get the status of a specific user. It can be used, for example, to animate a user's avatar with an LED to indicate their online/offline status.
+## 🔐 Seguridad (RLS - Row Level Security)
 
-```dart
-@override
-Widget build(BuildContext context) {
-  return UserOnlineStatusWidget(
-      uid: user.id,
-      builder: (status) {
-        //Use status == UserOnlineStatus.online to animate your avatar
-      },
-  );
-}
-```
+### Políticas de acceso
 
-## RLS (Row level security)
+#### Tabla `chats.users`
+- **INSERT**: Solo trigger automático desde auth.users
+- **SELECT**: Usuarios autenticados
+- **UPDATE**: Solo el propio usuario
+- **DELETE**: Restringido
 
-The preparation script automatically configures the security rules on the database tables and storage buckets, below is a summary of the rules that are applied:
+#### Tabla `jobs.offers`
+- **INSERT**: Usuarios autenticados
+- **SELECT**: Público (ofertas activas)
+- **UPDATE**: Solo el creador de la oferta
+- **DELETE**: Solo el creador de la oferta
 
-### Tables
+#### Tabla `jobs.offer_applicants`
+- **INSERT**: Usuarios autenticados
+- **SELECT**: Oferente y demandante involucrados
+- **UPDATE**: Oferente y demandante involucrados
+- **DELETE**: Solo el aplicante
 
-#### Table `chats.users`
+#### Tabla `chats.messages`
+- **INSERT**: Usuarios involucrados en la conversación
+- **SELECT**: Usuarios involucrados en la conversación
+- **UPDATE**: Remitente del mensaje
+- **DELETE**: Remitente del mensaje
 
-- `INSERT` : Nobody, this table is populate by trigger on auth.users. 
-- `SELECT` : All users authenticated.
-- `UPDATE` : Only the user himself.
-- `DELETE` : Nobody.
+---
 
-#### Table `chats.rooms`
+## 📱 Pantallas implementadas
 
-- `INSERT` : All users authenticated.
-- `SELECT` : All users who are members of the chat room.
-- `UPDATE` : All users who are members of the chat room.
-- `DELETE` : All users who are members of the chat room.
+| Pantalla | Descripción | Estado |
+|----------|-------------|--------|
+| **Inicio** | Listado público de trabajos | ✅ |
+| **Crear Oferta** | Formulario de publicación | ✅ |
+| **Mapa** | Búsqueda geolocalizada | ✅ |
+| **Chat** | Mensajería integrada | ✅ |
+| **Mis Trabajos** | Gestión de ofertas | ✅ |
+| **Perfil** | Información de usuario | ✅ |
+| **Verificación** | Validación de identidad | 🔄 |
+| **Pagos** | Integración de pagos | 📋 |
 
-#### Table `chats.messages`
+**Leyenda:**
+- ✅ Implementado
+- 🔄 En desarrollo
+- 📋 Planificado
 
-- `INSERT` : All users who are members of the chat room.
-- `SELECT` : All users who are members of the chat room.
-- `UPDATE` : All users who are members of the chat room.
-- `DELETE` : All users who are members of the chat room.
+---
 
-### Storage buckets
+## 🎯 Roadmap del proyecto
 
-#### Bucket `chats_assets`
+### Fase 1 - MVP (3 meses) ✅
+- [x] Diseño de interfaces
+- [x] Sistema de autenticación
+- [x] Publicación de ofertas
+- [x] Búsqueda por geolocalización
+- [x] Sistema de mensajería
+- [x] Gestión básica de trabajos
+- [x] Perfiles de usuario
 
-- `INSERT` : All users who are members of the chat room.
-- `SELECT` : All users who are members of the chat room.
-- `UPDATE` : All users who are members of the chat room.
-- `DELETE` : All users who are members of the chat room.
+### Fase 2 - Mejoras (Mes 4-6)
+- [ ] Sistema de calificaciones
+- [ ] Verificación de identidad
+- [ ] Integración de pagos
+- [ ] Notificaciones push
+- [ ] Optimización de rendimiento
 
-#### Bucket `chats_user_avatar`
+### Fase 3 - Escalabilidad (Mes 7+)
+- [ ] Aplicación iOS
+- [ ] Versión web
+- [ ] Panel administrativo
+- [ ] Analytics y métricas
+- [ ] Expansión nacional
 
-- `INSERT` : Only the user himself.
-- `SELECT` : All users authenticated.
-- `UPDATE` : Only the user himself.
-- `DELETE` : Only the user himself.
+---
 
-## Contributing
+## 💰 Modelo de negocio
 
-Please read our [Contributing Guide](CONTRIBUTING.md) before submitting a pull request to the project.
+### Estrategia de monetización
+- **Fase MVP**: Gratuito para todos los usuarios
+- **Fase de crecimiento**: Comisión por transacciones completadas
+- **Servicios premium**: Verificación prioritaria, destacados, etc.
 
-## Code of Conduct
+### Presupuesto inicial
+- **Desarrollo**: $300.000 CLP (3 meses)
+- **Infraestructura**: Gratuita durante MVP
+- **Escalamiento**: ~$25 USD/mes (Supabase Pro)
 
-Flyer Chat has adopted the [Contributor Covenant](https://www.contributor-covenant.org) as its Code of Conduct, and we expect project participants to adhere to it. Please read [the full text](CODE_OF_CONDUCT.md) so that you can understand what actions will and will not be tolerated.
+---
 
-## License
+## 👥 Equipo
 
-Licensed under the [Apache License, Version 2.0](LICENSE)
+| Rol | Nombre | Responsabilidad |
+|-----|--------|----------------|
+| **Director del Proyecto** | Luciano Flores | Desarrollo técnico y planificación |
+| **Patrocinador** | Roberto Larenas | Decisiones de negocio y presupuesto |
+| **Stakeholder** | Pamela Reyna | Validación de requerimientos |
 
-## Example project progress
+---
 
-Below are the features implemented for each platform:
+## 🤝 Contribución
 
-| Feature                  | Web | Android | iOS | Windows | macOS | Linux |
-|--------------------------|:---:|:-------:|:---:|:-------:|:-----:|:-----:|
-| Signup                   |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| SignIn                   |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Rooms list screen        |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Create direct room       |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Create group room        | 🚧  |   🚧    | 🚧  |   🚧    |  🚧   |  🚧   |
-| Create channel room      | 🚧  |   🚧    | 🚧  |   🚧    |  🚧   |  🚧   |
-| Chat screen              |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Search room              |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Search message           | 🚧  |   🚧    | 🚧  |   🚧    |  🚧   |  🚧   |
-| Search user              |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Upload image             |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Preview image message    |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Upload file              |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Download file            |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Users online status      |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Chat messages pagination |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Users pagination         |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
-| Users typing status      |  ✅  |    ✅    | 🟡  |    ✅    |  🟡   |  🟡   |
+Este proyecto está en desarrollo activo. Si quieres contribuir:
 
-- ✅ Tested
-- 🟡 Supported but not tested
-- 🚧 Planned
+1. Fork el repositorio
+2. Crea una rama para tu feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit tus cambios (`git commit -am 'Agrega nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Abre un Pull Request
 
-## Activities to complete (Roadmap)
+---
 
-Below are some activities to complete to have a more complete and optimized project also for use cases in larger projects.
+## 📄 Licencia
 
-1. Add the missing triggers
-2. Error handling
-3. Chat room groups
-4. Chat room channels
-5. Sending audio messages
-6. Improve documentation
+Este proyecto está bajo la Licencia Apache 2.0. Ver el archivo [LICENSE](LICENSE) para más detalles.
 
+---
+
+## 📞 Contacto
+
+- **Desarrollador**: Luciano Flores
+- **Email**: [luciano.flores@example.com](mailto:luciano.flores@example.com)
+- **Ubicación**: Iquique, Chile
+
+---
+
+## 🙏 Agradecimientos
+
+- [Supabase](https://supabase.com) por la infraestructura backend
+- [Flutter](https://flutter.dev) por el framework de desarrollo
+- [Mapbox](https://mapbox.com) por los servicios de mapas
+- Comunidad de desarrolladores de Flutter y Dart
+
+---
+
+**¿Necesitas un servicio? ¿Ofreces uno? ¡Perdiem te conecta!** 🔗

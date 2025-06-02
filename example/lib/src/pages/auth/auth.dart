@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../main.dart';
-import '../../widgets/notification_service.dart';
+import '../../services/notification_service.dart';
 import 'register.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -18,6 +18,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _obscurePassword = true; // Variable para controlar visibilidad de contraseña
   String? _errorMessage;
 
   Future<void> _signIn() async {
@@ -130,8 +131,8 @@ class _AuthScreenState extends State<AuthScreen> {
             children: [
               // Logo
               Image.asset(
-                'assets/flyer_logo.png',
-                height: 100,
+                'assets/logo.png',
+                height: 250,
               ),
               const SizedBox(height: 20),
               const Text(
@@ -166,6 +167,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     // Campo de correo
                     TextFormField(
                       controller: _emailController,
+                      enabled: !_isLoading,
                       decoration: const InputDecoration(
                         labelText: 'Correo electrónico',
                         prefixIcon: Icon(Icons.email),
@@ -184,15 +186,26 @@ class _AuthScreenState extends State<AuthScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    // Campo de contraseña
+                    // Campo de contraseña con toggle de visibilidad
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      enabled: !_isLoading,
+                      decoration: InputDecoration(
                         labelText: 'Contraseña',
-                        prefixIcon: Icon(Icons.lock),
-                        border: OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                        border: const OutlineInputBorder(),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Por favor ingresa tu contraseña';
@@ -205,7 +218,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: _recoverPassword,
+                        onPressed: _isLoading ? null : _recoverPassword,
                         child: const Text(
                           '¿Olvidaste tu contraseña?',
                           style: TextStyle(color: Colors.blue),
@@ -237,7 +250,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 20),
                     // Enlace para registrarse
                     TextButton(
-                      onPressed: () {
+                      onPressed: _isLoading ? null : () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (context) => const RegisterScreen()),
                         );

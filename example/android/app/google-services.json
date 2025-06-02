@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1041864147427",
+    "project_id": "perdiem-ca028",
+    "storage_bucket": "perdiem-ca028.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1041864147427:android:4a4760622e549c4a2460d6",
+        "android_client_info": {
+          "package_name": "com.perdiem.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-nIyFqzhkTefmJvXO4JCydBCl5RKoHSQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

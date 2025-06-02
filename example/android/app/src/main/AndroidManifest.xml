@@ -13,7 +13,7 @@
     <uses-feature android:name="android.hardware.location.network" android:required="false"/>
 
     <application
-        android:label="example"
+        android:label="PerDiem"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -29,17 +29,51 @@
                  while the Flutter UI initializes. After that, this theme continues
                  to determine the Window background behind the Flutter UI. -->
             <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
-            
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme"
+                />
+
             <meta-data
                 android:name="com.google.android.geo.API_KEY"
                 android:value="AIzaSyBAATrebPK0CyHGlvJcf7COWw6gyfqya3s"/>
 
+            <!-- Intent filter para el launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Intent filter para enlaces profundos con esquema personalizado (perdiem://) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- URI Scheme para abrir la app con perdiem:// -->
+                <data android:scheme="perdiem" />
+            </intent-filter>
+
+            <!-- Añade este nuevo intent-filter para los enlaces de Supabase -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="obebqaertspxottkblzm.supabase.co"
+                    android:pathPrefix="/functions/v1/compartir/" />
+            </intent-filter>
+
+            <!-- Intent filter para enlaces profundos con HTTP/HTTPS (App Links) -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <!-- App Links para abrir la app desde https://app.perdiem.cl -->
+                <data android:scheme="https"
+                    android:host="app.perdiem.cl" />
+                <!-- También agrega el dominio http si deseas soportarlo -->
+                <data android:scheme="http"
+                    android:host="app.perdiem.cl" />
             </intent-filter>
 
         </activity>

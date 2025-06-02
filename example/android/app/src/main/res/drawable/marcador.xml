@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="240" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Marcador de ubicación más redondeado -->
+    <path d="M100 10C50.3 10 10 50.3 10 100C10 149.7 100 230 100 230C100 230 190 149.7 190 100C190 50.3 149.7 10 100 10Z" fill="#8CD3A8"/>
+
+    <!-- Casa con techo redondeado -->
+    <path d="M135 90V145C135 150.5 130.5 155 125 155H75C69.5 155 65 150.5 65 145V90H55C55 90 55 87 57 85C59 83 100 55 100 55C100 55 141 83 143 85C145 87 145 90 145 90H135Z" fill="white"/>
+
+    <!-- Puerta con separación del piso -->
+    <path d="M110 120H90V142H110V120Z" fill="#8CD3A8"/>
+</svg>

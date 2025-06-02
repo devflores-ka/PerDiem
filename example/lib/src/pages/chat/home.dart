@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../auth/auth.dart';
 import 'rooms.dart';
+import 'users.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -54,33 +55,63 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         systemOverlayStyle: SystemUiOverlayStyle.light,
         title: const Text('Mensajes'),
+        // Eliminar el botón de regreso del AppBar cuando se muestra dentro del flujo principal
+        automaticallyImplyLeading: false,
+        actions: _user != null ? [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const UsersPage(),
+                ),
+              );
+            },
+            child: Text(
+              'Nuevo chat',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+          ),
+        ] : null,
+        backgroundColor: Colors.blue,
       ),
       backgroundColor: Colors.white,
       body: _user == null
           ? Container(
-              alignment: Alignment.center,
-              margin: const EdgeInsets.only(
-                bottom: 200,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('No haz iniciado sesión'),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          fullscreenDialog: true,
-                          builder: (context) => const AuthScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text('Iniciar sesión'),
+        alignment: Alignment.center,
+        margin: const EdgeInsets.only(
+          bottom: 200,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('No haz iniciado sesión'),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    fullscreenDialog: true,
+                    builder: (context) => const AuthScreen(),
                   ),
-                ],
-              ),
-            )
-          : RoomsPage(),
+                );
+              },
+              child: const Text('Iniciar sesión'),
+            ),
+          ],
+        ),
+      )
+          : Column(
+        children: [
+          // Envolver RoomsPage en un Expanded para que ocupe todo el espacio disponible
+          Expanded(
+            child: RoomsPage(),
+          ),
+        ],
+      ),
     );
   }
 }
+
+// Asegúrate de importar UsersPage si no está importado
+// import 'users.dart';

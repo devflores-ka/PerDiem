@@ -48,17 +48,17 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBuPIacYhb8pScY0H93CzOrb95X6XMXx6I',
-    appId: '1:1041864147427:web:0328259b1f3820762460d6',
+    appId: '1:1041864147427:web:bf8fb4b3c2302eb62460d6',
     messagingSenderId: '1041864147427',
     projectId: 'perdiem-ca028',
     authDomain: 'perdiem-ca028.firebaseapp.com',
     storageBucket: 'perdiem-ca028.firebasestorage.app',
-    measurementId: 'G-QRKG05SSM4',
+    measurementId: 'G-CJF36SHSB9',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyB-nIyFqzhkTefmJvXO4JCydBCl5RKoHSQ',
-    appId: '1:1041864147427:android:92db00d0c328be802460d6',
+    appId: '1:1041864147427:android:4a4760622e549c4a2460d6',
     messagingSenderId: '1041864147427',
     projectId: 'perdiem-ca028',
     storageBucket: 'perdiem-ca028.firebasestorage.app',
@@ -66,10 +66,11 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCWriQKkYnhy57adl_MdC0DzL2Bj_WclTg',
-    appId: '1:1041864147427:ios:79286df420f154ae2460d6',
+    appId: '1:1041864147427:ios:05411df8cf1c6b7e2460d6',
     messagingSenderId: '1041864147427',
     projectId: 'perdiem-ca028',
     storageBucket: 'perdiem-ca028.firebasestorage.app',
-    iosBundleId: 'com.example',
+    iosBundleId: 'com.perdiem.app',
   );
+
 }

@@ -19,7 +19,7 @@ class _UsersPageState extends State<UsersPage> {
   String _filter = '';
 
   final PagingController<int, types.User> _controller =
-      PagingController(firstPageKey: 0);
+  PagingController(firstPageKey: 0);
 
   @override
   void initState() {
@@ -77,37 +77,37 @@ class _UsersPageState extends State<UsersPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          title: const Text('Usuarios'),
+    appBar: AppBar(
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      title: const Text('Users'),
+    ),
+    body: Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        FractionallySizedBox(
+          widthFactor: .5,
+          child: TextField(
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              labelText: 'Search',
+            ),
+            onChanged: (value) => _setFilters(value),
+          ),
         ),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            FractionallySizedBox(
-              widthFactor: .5,
-              child: TextField(
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  labelText: 'Buscar',
-                ),
-                onChanged: (value) => _setFilters(value),
+        Expanded(
+          child: PagedListView<int, types.User>(
+            pagingController: _controller,
+            builderDelegate: PagedChildBuilderDelegate<types.User>(
+              itemBuilder: (context, user, index) => UserTile(
+                user: user,
+                onTap: (user) {
+                  _handlePressed(user, context);
+                },
               ),
             ),
-            Expanded(
-              child: PagedListView<int, types.User>(
-                pagingController: _controller,
-                builderDelegate: PagedChildBuilderDelegate<types.User>(
-                  itemBuilder: (context, user, index) => UserTile(
-                    user: user,
-                    onTap: (user) {
-                      _handlePressed(user, context);
-                    },
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
