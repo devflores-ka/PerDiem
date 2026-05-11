@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import '../class/message_status_ex.dart';
@@ -194,12 +194,6 @@ class RoomTile extends StatelessWidget {
         Flexible(
           child: Row(
             children: [
-              // Mostrar icono para grupos de ofertas
-              if (room.metadata != null && room.metadata!['offer_id'] != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6.0),
-                  child: Icon(Icons.handshake, size: 16, color: Colors.orange),
-                ),
               Flexible(
                 child: Text(
                   _getRoomName(),
@@ -239,14 +233,85 @@ class RoomTile extends StatelessWidget {
           ),
       ],
     ),
-    subtitle: room.lastMessages?.isNotEmpty == true &&
-        room.lastMessages!.first is types.TextMessage
-        ? Text(
-      (room.lastMessages!.first as types.TextMessage).text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-    )
-        : null,
+    subtitle: _buildSubtitle(context), // Extrajimos la lógica a una función segura
     onTap: () => onTap(room),
   );
+
+  // Añade esta función al final de la clase o dentro del widget
+  Widget? _buildSubtitle(BuildContext context) {
+    if (room.lastMessages == null || room.lastMessages!.isEmpty) {
+      return null;
+    }
+
+    final lastMessage = room.lastMessages!.first;
+
+    // 1. Si es Texto normal
+    if (lastMessage is types.TextMessage) {
+      return Text(
+        lastMessage.text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // 2. Si es un Mensaje Personalizado (Presupuestos)
+    if (lastMessage is types.CustomMessage) {
+      final metadata = lastMessage.metadata;
+      
+      // Caso A: Presupuesto
+      if (metadata?['type'] == 'budget_proposal') {
+        final proposal = metadata?['proposal'];
+        final amount = proposal?['amount']?.toString() ?? '0';
+        return Row(
+          children: [
+            const Icon(Icons.attach_money, size: 14, color: Colors.green),
+            Text(
+              'Presupuesto: \$$amount',
+              style: const TextStyle(
+                color: Colors.green, 
+                fontWeight: FontWeight.bold
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+      }
+      
+      // Caso B: Servicio Completado
+      if (metadata?['type'] == 'service_completion') {
+         return const Row(
+          children: [
+            Icon(Icons.check_circle, size: 14, color: Colors.blue),
+            Text(
+              ' Servicio Completado',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        );
+      }
+    }
+
+    // 3. Si es Imagen
+    if (lastMessage is types.ImageMessage) {
+      return const Row(
+        children: [
+          Icon(Icons.image, size: 14, color: Colors.grey),
+          Text(' Imagen', style: TextStyle(fontStyle: FontStyle.italic)),
+        ],
+      );
+    }
+    
+    // 4. Si es Archivo
+    if (lastMessage is types.FileMessage) {
+       return const Row(
+        children: [
+          Icon(Icons.attach_file, size: 14, color: Colors.grey),
+          Text(' Archivo', style: TextStyle(fontStyle: FontStyle.italic)),
+        ],
+      );
+    }
+
+    return null;
+  }
 }

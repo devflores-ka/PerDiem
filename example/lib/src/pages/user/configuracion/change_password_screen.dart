@@ -58,8 +58,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Cambiar contraseña'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      foregroundColor: Colors.black,
       elevation: 2,
     ),
     body: SingleChildScrollView(
@@ -95,8 +94,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                   const SizedBox(height: 8),
                   const Text('1. Ingresa tu nueva contraseña'),
-                  const Text('2. Supabase actualizará tu contraseña automáticamente'),
-                  const Text('3. No necesitas ingresar tu contraseña actual'),
+                  const Text('2. Actualizaremos tu contraseña automáticamente'),
+                  const Text('3. Necesitas ingresar tu contraseña actual'),
                 ],
               ),
             ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:mime/mime.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -225,6 +226,7 @@ class SupabaseChatCore {
         .eq('type', types.RoomType.direct.toShortString())
         .eq('userIds', userIds)
         .limit(1);
+        
     // Check if room already exist.
     if (roomQuery.isNotEmpty) {
       final room = (await processRoomsRows(
@@ -246,7 +248,16 @@ class SupabaseChatCore {
       config.schema,
     );
 
-    final users = [types.User.fromJson(currentUser), otherUser];
+    // --- PARCHE ANTI-WORKER ---
+    // Convertimos el resultado a un mapa mutable para poder cambiar el rol al vuelo
+    final safeCurrentUser = Map<String, dynamic>.from(currentUser);
+    if (safeCurrentUser['role'] == 'worker') {
+      safeCurrentUser['role'] = 'user';
+    }
+    // --------------------------
+
+    // Usamos el safeCurrentUser en lugar de currentUser
+    final users = [types.User.fromJson(safeCurrentUser), otherUser];
 
     // Create new room with sorted user ids array.
     final room =
@@ -260,6 +271,7 @@ class SupabaseChatCore {
       'userIds': userIds,
       'userRoles': null,
     }).select();
+    
     return types.Room(
       id: room.first['id'].toString(),
       metadata: metadata,
@@ -565,35 +577,85 @@ class SupabaseChatCore {
 
     final queryUnlimited = filter != null && filter != ''
         ? table.select().or(
-              'or(firstName.ilike.%$filter%,lastName.ilike.%$filter%)',
+              'firstName.ilike.%$filter%,lastName.ilike.%$filter%',
             )
         : table.select();
+        
     var query = queryUnlimited
         .order('firstName', ascending: true)
         .order('lastName', ascending: true);
+        
     if (offset != null && limit != null) {
-      query = query.range(offset, offset + limit);
+      query = query.range(offset, offset + limit - 1); 
     } else if (limit != null) {
       query = query.limit(limit);
     }
+    
     final response = await query;
-    return response
-        .map(
-          (e) => types.User.fromJson(e),
-        )
-        .toList();
+    final List<types.User> parsedUsers = [];
+
+    // --- ESCUDO BLINDADO ---
+    for (var e in response) {
+      try {
+        final safeData = Map<String, dynamic>.from(e);
+        
+        // 1. Parche de Rol
+        if (safeData['role'] == 'worker') {
+          safeData['role'] = 'user';
+        }
+        
+        // 2. Parche de Fechas (Convertir String de Supabase a Int para la librería)
+        if (safeData['createdAt'] != null && safeData['createdAt'] is String) {
+          safeData['createdAt'] = DateTime.tryParse(safeData['createdAt'])?.millisecondsSinceEpoch;
+        }
+        if (safeData['updatedAt'] != null && safeData['updatedAt'] is String) {
+          safeData['updatedAt'] = DateTime.tryParse(safeData['updatedAt'])?.millisecondsSinceEpoch;
+        }
+
+        parsedUsers.add(types.User.fromJson(safeData));
+      } catch (err) {
+        // Si un usuario falla (ej. no tiene ID), lo ignoramos y seguimos con el resto
+        debugPrint('⚠️ Error al cargar usuario ${e['id']}: $err');
+      }
+    }
+
+    return parsedUsers;
   }
 
   /// Returns a user from Supabase.
   Future<types.User?> user({
     required String uid,
   }) async {
-    final response = await client
-        .schema(config.schema)
-        .from(config.usersTableName)
-        .select()
-        .eq('id', uid)
-        .limit(1);
-    return response.isNotEmpty ? types.User.fromJson(response.first) : null;
+    try {
+      final response = await client
+          .schema(config.schema)
+          .from(config.usersTableName)
+          .select()
+          .eq('id', uid)
+          .limit(1);
+          
+      if (response.isNotEmpty) {
+        final safeData = Map<String, dynamic>.from(response.first);
+        
+        // 1. Parche de Rol
+        if (safeData['role'] == 'worker') {
+          safeData['role'] = 'user';
+        }
+        
+        // 2. Parche de Fechas
+        if (safeData['createdAt'] != null && safeData['createdAt'] is String) {
+          safeData['createdAt'] = DateTime.tryParse(safeData['createdAt'])?.millisecondsSinceEpoch;
+        }
+        if (safeData['updatedAt'] != null && safeData['updatedAt'] is String) {
+          safeData['updatedAt'] = DateTime.tryParse(safeData['updatedAt'])?.millisecondsSinceEpoch;
+        }
+
+        return types.User.fromJson(safeData);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('⚠️ Error al cargar usuario único: $e');
+      return null;
+    }
   }
 }

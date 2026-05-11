@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../configuracion/change_email_screen.dart';
-import '../configuracion/change_password_screen.dart';
+import '/l10n/generated/app_localizations.dart';
+import '../../../managers/language_provider.dart';
+import '../../auth/legal_doc_screen.dart';
+import 'change_email_screen.dart';
+import 'change_password_screen.dart';
 import 'edit_name_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -23,223 +27,285 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final supabase = Supabase.instance.client;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Información personal'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
-      elevation: 2,
-    ),
-    body: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        // Información del usuario
-        if (widget.userProfile != null) ...[
-          _buildUserInfoCard(),
-          const SizedBox(height: 24),
-        ],
+  Widget build(BuildContext context) {
+    // Obtenemos las traducciones (puede ser null, por eso usamos !)
+    final l10n = AppLocalizations.of(context)!;
 
-        // Sección de perfil
-        _buildSectionHeader('Datos personales'),
-        _buildSettingsTile(
-          context,
-          icon: Icons.person_outline,
-          title: 'Editar nombre',
-          subtitle: 'Cambiar nombre y apellido',
-          onTap: () => _navigateToEditName(context),
-        ),
-        _buildSettingsTile(
-          context,
-          icon: Icons.email_outlined,
-          title: 'Cambiar email',
-          subtitle: 'Actualizar dirección de correo',
-          onTap: () => _navigateToEditEmail(context),
-        ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.profileTitle),
+        foregroundColor: Colors.black,
+        elevation: 2,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Información del usuario
+          if (widget.userProfile != null) ...[
+            _buildUserInfoCard(),
+            const SizedBox(height: 24),
+          ],
 
-        const SizedBox(height: 20),
-
-        // Sección de seguridad
-        _buildSectionHeader('Seguridad'),
-        _buildSettingsTile(
-          context,
-          icon: Icons.lock_outline,
-          title: 'Cambiar contraseña',
-          subtitle: 'Actualizar tu contraseña',
-          onTap: () => _navigateToChangePassword(context),
-        ),
-        _buildSettingsTile(
-          context,
-          icon: Icons.security_outlined,
-          title: 'Privacidad y seguridad',
-          subtitle: 'Configurar permisos y privacidad',
-          onTap: () => _navigateToPrivacySettings(context),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Sección de aplicación
-        _buildSectionHeader('Soporte'),
-        _buildSettingsTile(
-          context,
-          icon: Icons.help_outline,
-          title: 'Ayuda y soporte',
-          subtitle: 'Centro de ayuda y contacto',
-          onTap: () => _navigateToHelp(context),
-        ),
-        _buildSettingsTile(
-          context,
-          icon: Icons.info_outline,
-          title: 'Acerca de',
-          subtitle: 'Versión e información de la app',
-          onTap: () => _showAboutDialog(context),
-        ),
-
-        const SizedBox(height: 20),
-      ],
-    ),
-  );
-
-  // En SettingsScreen, reemplazar _buildUserInfoCard() con:
-  Widget _buildUserInfoCard() => StreamBuilder<User?>(
-    stream: supabase.auth.onAuthStateChange.map((data) => data.session?.user),
-    builder: (context, snapshot) {
-      final user = snapshot.data ?? supabase.auth.currentUser;
-      final displayEmail = user?.email ?? widget.userProfile?['email'] ?? '';
-
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.blue.shade200),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: Colors.blue.shade200,
-              backgroundImage: widget.userProfile?['imageUrl'] != null
-                  ? NetworkImage(widget.userProfile!['imageUrl'])
-                  : null,
-              child: widget.userProfile?['imageUrl'] == null
-                  ? Icon(
-                Icons.person,
-                size: 30,
-                color: Colors.blue.shade700,
-              )
-                  : null,
+          // ✅ SELECTOR DE IDIOMA (Corregido)
+          ListTile(
+            leading: const Icon(Icons.language, color: Colors.blue),
+            title: Text(l10n.language), // "Idioma" desde el archivo arb
+            trailing: DropdownButton<String>(
+              // Escuchamos el idioma actual del Provider
+              value: context.watch<LanguageProvider>().locale.languageCode,
+              icon: const Icon(Icons.arrow_drop_down),
+              underline: const SizedBox(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  // Cambiamos el idioma usando el Provider
+                  context.read<LanguageProvider>().changeLanguage(Locale(newValue));
+                }
+              },
+              items: const [
+                DropdownMenuItem(value: 'es', child: Text('Español 🇪🇸')),
+                DropdownMenuItem(value: 'en', child: Text('English 🇺🇸')),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${widget.userProfile?['firstName'] ?? ''} ${widget.userProfile?['lastName'] ?? ''}'.trim(),
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  if (displayEmail.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        displayEmail,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+          ),
+
+          const Divider(),
+
+          // Sección de perfil
+          _buildSectionHeader(l10n.settings), // "Ajustes"
+          _buildSettingsTile(
+            context,
+            icon: Icons.person_outline,
+            title: l10n.editName,
+            subtitle: l10n.editNameSubtitle,
+            onTap: () => _navigateToEditName(context),
+          ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.email_outlined,
+            title: l10n.changeEmail,
+            subtitle: l10n.changeEmailSubtitle,
+            onTap: () => _navigateToEditEmail(context),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Sección de seguridad
+          _buildSectionHeader(l10n.securityTitle),
+          _buildSettingsTile(
+            context,
+            icon: Icons.lock_outline,
+            title: l10n.changePassword,
+            subtitle: l10n.changePasswordSubtitle,
+            onTap: () => _navigateToChangePassword(context),
+          ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.security_outlined,
+            title: l10n.privacySecurity,
+            subtitle: l10n.privacyPolicySubtitle,
+            onTap: () => _navigateToPrivacySettings(context),
+          ),
+
+          const SizedBox(height: 20),
+
+          // SECCIÓN LEGAL
+          _buildSectionHeader(l10n.legalTitle),
+          _buildSettingsTile(
+            context,
+            icon: Icons.description_outlined,
+            title: l10n.terms, // "Términos y Condiciones"
+            subtitle: l10n.termsSubtitle,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LegalDocScreen(docType: 'terms'),
+                ),
+              );
+            },
+          ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.privacy_tip_outlined,
+            title: l10n.privacy, // "Política de Privacidad"
+            subtitle: l10n.privacyPolicySubtitle,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LegalDocScreen(docType: 'privacy'),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 20),
+
+          // Sección de aplicación
+          _buildSectionHeader(l10n.appTitle),
+          _buildSettingsTile(
+            context,
+            icon: Icons.help_outline,
+            title: l10n.helpSupport,
+            subtitle: l10n.helpSupportSubtitle,
+            onTap: () => _navigateToHelp(context),
+          ),
+          _buildSettingsTile(
+            context,
+            icon: Icons.info_outline,
+            title: l10n.about,
+            subtitle: l10n.aboutSubtitle,
+            onTap: () => _showAboutDialog(context),
+          ),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserInfoCard() => StreamBuilder<User?>(
+        stream: supabase.auth.onAuthStateChange.map((data) => data.session?.user),
+        builder: (context, snapshot) {
+          final user = snapshot.data ?? supabase.auth.currentUser;
+          final displayEmail = user?.email ?? widget.userProfile?['email'] ?? '';
+
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.blue.shade200),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: Colors.blue.shade200,
+                  backgroundImage: widget.userProfile?['imageUrl'] != null
+                      ? NetworkImage(widget.userProfile!['imageUrl'])
+                      : null,
+                  child: widget.userProfile?['imageUrl'] == null
+                      ? Icon(
+                          Icons.person,
+                          size: 30,
+                          color: Colors.blue.shade700,
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${widget.userProfile?['firstName'] ?? ''} ${widget.userProfile?['lastName'] ?? ''}'.trim(),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
-                ],
-              ),
+                      if (displayEmail.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            displayEmail,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          );
+        },
       );
-    },
-  );
 
   Widget _buildSectionHeader(String title) => Padding(
-    padding: const EdgeInsets.only(top: 8, bottom: 12, left: 4, right: 4),
-    child: Text(
-      title,
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.grey.shade700,
-      ),
-    ),
-  );
-
-  Widget _buildSettingsTile(
-      BuildContext context, {
-        required IconData icon,
-        required String title,
-        required String subtitle,
-        required VoidCallback onTap,
-        Color? iconColor,
-      }) => Card(
-    margin: const EdgeInsets.symmetric(vertical: 4),
-    elevation: 1,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      leading: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: (iconColor ?? Colors.blue).withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          color: iconColor ?? Colors.blue.shade700,
-          size: 24,
-        ),
-      ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 16,
-        ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 4),
+        padding: const EdgeInsets.only(top: 8, bottom: 12, left: 4, right: 4),
         child: Text(
-          subtitle,
+          title,
           style: TextStyle(
-            color: Colors.grey.shade600,
-            fontSize: 14,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade700,
           ),
         ),
-      ),
-      trailing: const Icon(
-        Icons.arrow_forward_ios,
-        size: 16,
-        color: Colors.grey,
-      ),
-      onTap: onTap,
-    ),
-  );
+      );
 
-  // Métodos de navegación para funciones específicas
+  Widget _buildSettingsTile(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) =>
+      Card(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        elevation: 0, // Plano para diseño más limpio
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(color: Colors.grey.shade200)),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: (iconColor ?? Colors.blue).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: iconColor ?? Colors.blue.shade700,
+              size: 24,
+            ),
+          ),
+          title: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              subtitle,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          trailing: const Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color: Colors.grey,
+          ),
+          onTap: onTap,
+        ),
+      );
+
+  // --- MÉTODOS DE NAVEGACIÓN ---
+
   void _navigateToEditEmail(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChangeEmailScreen(
-          userProfile: widget.userProfile, // ✅ Pasar el perfil
-          onProfileUpdated: widget.onProfileUpdated, // ✅ Pasar callback
+          userProfile: widget.userProfile,
+          onProfileUpdated: widget.onProfileUpdated,
         ),
       ),
     );
   }
 
-// También corregir los otros métodos para consistencia
   void _navigateToEditName(BuildContext context) {
     Navigator.push(
       context,
@@ -293,7 +359,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Icono de la app
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -307,32 +372,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Nombre de la app
             const Text(
-              'Mi App de Trabajos',
+              'PerDiem App',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
               textAlign: TextAlign.center,
             ),
-
             const SizedBox(height: 12),
-
-            // Descripción
             Text(
-              'Aplicación para conectar profesionales y clientes de manera fácil y segura.',
+              'Conectando profesionales y clientes.',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
             ),
-
             const SizedBox(height: 16),
-
-            // Versión
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -348,10 +405,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
-
-            // Botón cerrar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -364,13 +418,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Cerrar',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: const Text('Cerrar'),
               ),
             ),
           ],

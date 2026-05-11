@@ -1,0 +1,248 @@
+{   "availableServices": "Servicios Disponibles",
+    "mapTitle": "Mapa",
+    "profileTitle": "Perfil",
+    "messages": "Mensajes",
+    "conversation": "Conversación",
+    "myWorksTitle": "Mis Trabajos",
+    "users": "Usuarios",
+    "manageScheduleTitle": "Gestionar Agenda",
+    "manageScheduledVisits": "Mis Visitas Agendadas",
+    "negotiationsTitle": "Mis Negociaciones",
+    "detailsService": "Detalles del Servicio",
+    "aboutMe": "Sobre mi",
+    "skills": "Habilidades",
+    "noAddedSkills": "No hay habilidades añadidas",
+    "specialties": "Especialidades",
+    "jobs": "Trabajos",
+    "comments": "Comentarios",
+    "noCompletedJobs": "No tienes trabajos completados",
+    "completedJobs": "Aquí aparecerán los servicios que has prestado o contratado",
+    "showAllWork": "Ver todos mis trabajos",
+    "completed": "Completado el",
+    "serviceOf": "Servicio de",
+    "serviceContracted": "Servicio contratado",
+    "allServicesContracted": "Aquí aparecerán todos los servicios que has prestado o contratado una vez completados",
+    "noJobsCompleted": "No tienes trabajos completados",
+    "suplier": "Proveedor",
+    "contracted": "Contratado",
+    "noCommentsAvaliable": "No hay comentarios disponibles",
+    "allCommentsOfUsers": "Los comentarios de tus clientes aparecerán aquí",
+    "workStatus": "Estado de trabajo",
+    "visibleOnMap": "Visible en el mapa",
+    "hiddenOnMap": "Oculto (Nadie te ve)",
+    "settings": "Ajustes",
+    "scheduleWeek": "Mi Agenda Semanal",
+    "scheduleWeekSubtitle": "Configura tus días y horarios de trabajo",
+    "scheduledVisits": "Mis Visitas Agendadas",
+    "scheduledVisitsSubtitle": "Revisa tus próximos compromisos y clientes",
+    "location": "Mi Ubicación",
+    "currentLocation": "Ubicación actual",
+    "locationSingle": "Ubicación",
+    "language": "Idioma",
+    "terms": "Términos y Condiciones",
+    "privacy": "Política de Privacidad",
+    "logout": "Cerrar sesión",
+
+    "editName": "Editar nombre",
+    "editNameSubtitle": "Cambiar nombre y apellido",
+    "changeEmail": "Cambiar email",
+    "changeEmailSubtitle": "Actualizar dirección de correo",
+
+    "personalInfo": "Información personal",
+    "updatePersonalInfo": "Actualiza tu nombre, email y contraseña",
+    "specialties": "Especialidades",
+    "updateSpecialties": "Gestionar categorías y oficios",
+
+    "categories": "Categorías",
+    "categorie": "Categoría",
+    "trades": "Oficios",
+
+    "cantContactYourself": "No puedes contactar tu propia oferta",
+    "contact": "Contactar",
+
+    "reviews": "Reseñas",
+
+    "plsSelectCalf": "Por favor, selecciona una calificación",
+    "succesfulReview": "¡Reseña enviada con éxito!",
+    "errorSubmitting": "Error al enviar la reseña:",
+    "rateOne": "Calificar a",
+    "howRating": "¿Cómo calificarías tu experiencia?",
+    "rate": "Calificar",
+    "commentOpt": "Comentario (opcional)",
+    "tellUsExp": "Cuéntanos tu experiencia...",
+    "sending": "ENVIANDO...",
+    "sendReview": "ENVIAR RESEÑA",
+    "send": "Enviar",
+
+    "serviceCompleted": "El servicio ha sido marcado como COMPLETADO",
+    "serviceMarkedCompltd": "Servicio marcado como completado",
+    "errorServiceMarkedCompltd": "Error al marcar el servicio como completado:",
+    "serviceStillIncompltd": "Se ha indicado que el servicio NO está completado aún",
+    "serviceRegNotCompltd": "Se ha registrado que el servicio no está completado",
+    "srvCompltd": "Servicio Completado",
+
+    "thxFTReview": "¡Gracias por tu reseña! Tu opinión es muy valiosa.",
+    "serviceDoneYet": "¿Se ha completado el servicio?",
+
+    "yes": "Sí",
+    "no": "No",
+
+    "mySpeciality": "Mis especialidades",
+    "editCatdnOf": "Editar categorías y oficios",
+    "noCatConf": "No tienes categorías configuradas",
+    "addCats": "Agrega tus especialidades para que otros puedan encontrarte",
+    "addSpecs": "Agregar especialidades",
+    "noProff": "Sin oficios especificados",
+
+    "myServices": "Mis Servicios",
+    "noServiceOnAir": "No hay servicios publicados",
+
+    "budget": "Presupuesto",
+    "createBudget": "Crear Presupuesto",
+
+    "budgetAccept": "Propuesta de presupuesto ACEPTADA:",
+    "yourBudgetAccept": "Tu propuesta de presupuesto ha sido ACEPTADA",
+    "uHvAccept": "Has aceptado la propuesta de presupuesto",
+    "errorAccepting": "Error al aceptar propuesta:",
+    "newBudgetProp": "Nueva propuesta de presupuesto:",
+    "propSended": "Propuesta de presupuesto enviada",
+    "errorSendProp": "Error al enviar propuesta:",
+    "pendingProp": "Tienes una propuesta de presupuesto pendiente",
+
+    "budgetRejected": "Propuesta de presupuesto RECHAZADA:",
+    "yourBudgetRejected": "Tu propuesta de presupuesto ha sido RECHAZADA",
+    "uHvReject": "Has rechazado la propuesta de presupuesto",
+    "errorRejectBudget": "Error al rechazar propuesta:",
+
+    "countProp": "Crear Contrapropuesta",
+    "sendCountProp": "Enviar Contrapropuesta",
+    "newCountProp": "Nueva contrapropuesta de presupuesto:",
+    "sendedCountProp": "Contrapropuesta enviada",
+    "errorSendingCountProp": "Error al enviar contrapropuesta:",
+    "errorShowingProp": "Error mostrando propuesta:",
+
+    "userNotAvaliable": "El usuario no está disponible para chat",
+    "errorContact": "Error al contactar",
+    
+    "selectOneCategorie": "Selecciona una categoría",
+    "firstSelectOneCategorie": "Primero selecciona una categoría",
+    "selectOneTrade": "Selecciona un oficio",
+
+    "noCategoryAvaliable": "No hay categorías disponibles",
+
+    "peakUbiaction": "Seleccionar ubicación",
+    "confirm": "Confirmar",
+
+    "searchPlace": "Buscar lugar...",
+
+    "search": "Buscar",
+
+    "newChat": "Nuevo chat",
+
+    "noSession": "No has iniciado sesión",
+
+    "login": "Iniciar sesión",
+
+    "withoutReview": "Sin reseñas",
+    "loading": "Cargando...",
+
+    "searchUbiOrPickOne": "Busca una dirección o toca en el mapa",
+    "searchPickCategorie": "Toca para seleccionar...",
+    "searchUbi": "Buscar ubicación",
+    "searchUbiExample": "Ej: Santiago, Chile o Av. Providencia 123",
+    "yourUbi": "Tu ubicación",
+
+    "formJobTitle": "Formulario de Trabajo",
+    "jobTitle": "Título del trabajo",
+    "description": "Descripción",
+    "amount": "Monto",
+    "imageTitle": "Imagen del trabajo",
+    "basicMode": "¿Problemas? Usa modo básico",
+    "addImage": "Agregar imagen del trabajo",
+    "optional": "(Opcional)",
+
+    "pickImage": "Seleccionar Imagen",
+    "imageQuestion": "¿Cómo te gustaría seleccionar la imagen del trabajo?",
+
+    "image": "Imagen",
+    "file": "Archivo",
+    
+    "camera": "Cámara",
+    "gallery": "Galería",
+    "explorer": "Explorador",
+    "cancel": "Cancelar",
+
+    "ubiJob": "Ubicación del trabajo",
+    "bannerChangeLocation": "Mantén presionado para cambiar ubicación",
+    "openMap": "Abrir mapa",
+    "locationSelected": "Ubicación seleccionada:",
+
+    "publishJob": "Publicar Trabajo",
+    "publishingJob": "Publicando trabajo...",
+
+    "plsTitle": "Por favor ingresa un título",
+    "plsDescription": "Por favor ingresa una descripción",
+    "plsAmount": "Por favor ingresa un monto",
+    "plsCategory": "Por favor selecciona una categoría",
+    "plsLocation": "Por favor selecciona una ubicación en el mapa",
+    "openLocationSelector": "Abrir selector de ubicación",
+
+    "jobDoneMessage": "¡Trabajo publicado exitosamente!",
+
+    "ubiServiceDisable": "Servicios de ubicación deshabilitados",
+    "deniedLocationPermission": "Permiso de ubicación denegado",
+    "errorGettingUbi": "Error al obtener ubicación:",
+    "savedUbi": "Ubicación de trabajo actualizada",
+    "updatedUbi": "Ubicación actualizada",
+
+    "userNotAuth": "Usuario no autenticado",
+    "selectCategory": "Debe seleccionar una categoría",
+
+    "point": "PUNTO",
+    "error": "Error",
+
+    "errorSaving": "Error al guardar:",
+
+    "lat": "Latitud:",
+    "lng": "Longitud:",
+
+    "securityTitle": "Seguridad",
+    "changePassword": "Cambiar contraseña",
+    "changePasswordSubtitle": "Actualizar tu contraseña",
+    "privacySecurity": "Privacidad y seguridad",
+    "privacySecuritySubtitle": "Configurar permisos y privacidad",
+
+    "legalTitle": "Legal",
+    "termsSubtitle": "Reglas de uso de la plataforma",
+    "privacyPolicySubtitle": "Cómo tratamos tus datos",
+
+    "appTitle": "Aplicación",
+    "helpSupport": "Ayuda y soporte",
+    "helpSupportSubtitle": "Centro de ayuda y contacto",
+    "about": "Acerca de",
+    "aboutSubtitle": "Versión e información de la app",
+
+    "view": "Ver",
+
+    "fromCalendar": "Desde",
+    "untilCalendar": "Hasta",
+
+    "change": "Cambiar",
+    "remove": "Remover",
+
+    "monday": "Lunes",
+    "tuesday": "Martes",
+    "wednesday": "Miércoles",
+    "thursday": "Jueves",
+    "friday": "Viernes",
+    "saturday": "Sábado",
+    "sunday": "Domingo",
+
+    "update": "Actualizar",
+
+    "all": "Todas",
+    "pending": "Pendientes",
+    "accepted": "Aceptadas",
+    "rejected": "Rechazadas",
+    "countered": "Contraofertadas"
+}

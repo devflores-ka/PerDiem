@@ -14,10 +14,15 @@ import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 import '../../services/review_service.dart';
 import '../../services/user_service.dart';
+import '../../widgets/worker_status_switch.dart';
 import '../auth/auth.dart';
 import '../jobs/trabajos_screen.dart';
+import '../personal/worker_agenda_screen.dart';
+import '../personal/worker_schedule_screen.dart';
 import 'configuracion/settings_screen.dart';
 import 'personal/reviews_screen.dart';
 import 'personal/update_categories_screen.dart';
@@ -41,6 +46,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
   String _currentLocationAddress = 'Cargando ubicación...';
   bool _isLoadingLocation = true;
   final supabase = Supabase.instance.client;
+  bool _isWorker = false;
 
   // Estado de carga y autenticación
   bool isLoading = true;
@@ -104,7 +110,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
         _cargarCalificacionUsuario(),
         _cargarTrabajosRecientes(),
         _loadUserCategoriesAndOficios(),
-        _loadUserLocation(), // AGREGAR ESTA LÍNEA
+        _loadUserLocation(),
       ]);
     }
   }
@@ -329,7 +335,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
         final userData = await supabase
             .schema('chats')
             .from('users')
-            .select('firstName, lastName, imageUrl, descripcion')
+            .select('firstName, lastName, imageUrl, descripcion, role')
             .eq('id', user.id)
             .single();
 
@@ -338,6 +344,11 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           lastName = userData['lastName'];
           imageUrl = userData['imageUrl'];
           descripcion = userData['descripcion'] ?? 'Sin descripción';
+
+          // DETECTAR SI ES TRABAJADOR
+          final role = userData['role'] as String?;
+          _isWorker = (role == 'worker');
+
           _descripcionController.text = descripcion!;
           isLoading = false;
           isUserLoggedIn = true;
@@ -358,6 +369,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
   }
 
   Future<void> _cargarTrabajosRecientes() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _isLoadingTrabajos = true);
 
     try {
@@ -432,18 +444,16 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           todosLosTrabajos.add({
             ...trabajo,
             'tipo': 'cliente',
-            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'titulo': trabajo['description'] ?? l10n.serviceContracted,
             'proveedor_nombre': '${proveedorData['firstName'] ?? ''} ${proveedorData['lastName'] ?? ''}'.trim(),
-            'mostrar_como': 'Servicio de ${proveedorData['firstName'] ?? 'Proveedor'}',
           });
         } catch (e) {
           debugPrint('Error obteniendo datos del proveedor: $e');
           todosLosTrabajos.add({
             ...trabajo,
             'tipo': 'cliente',
-            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'titulo': trabajo['description'] ?? l10n.serviceContracted,
             'proveedor_nombre': 'Proveedor',
-            'mostrar_como': 'Servicio contratado',
           });
         }
       }
@@ -983,123 +993,132 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
 
   // MÉTODOS DE UI
   void _mostrarDialogoAgregarHabilidad() {
-    var searchResults = <Map<String, dynamic>>[];
-    var isSearching = false;
-    var nivel = 'Intermedio';
+  var searchResults = <Map<String, dynamic>>[];
+  var isSearching = false;
+  var nivel = 'Intermedio'; // Valor por defecto
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Agregar habilidad'),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: _searchSkillController,
-                  decoration: const InputDecoration(
-                    hintText: 'Buscar habilidad...',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) async {
-                    if (value.length >= 2) {
-                      setDialogState(() => isSearching = true);
-                      final results = await _buscarHabilidades(value);
-                      setDialogState(() {
-                        searchResults = results;
-                        isSearching = false;
-                      });
-                    } else {
-                      setDialogState(() => searchResults = []);
-                    }
-                  },
+  showDialog(
+    context: context,
+    builder: (BuildContext context) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        title: const Text('Agregar habilidad'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // --- CAMPO DE BÚSQUEDA ---
+              TextField(
+                controller: _searchSkillController,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar habilidad...',
+                  prefixIcon: Icon(Icons.search),
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 15),
-                DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Nivel',
-                    border: OutlineInputBorder(),
-                  ),
-                  value: nivel,
-                  items: nivelesHabilidad.map((nivelItem) => DropdownMenuItem<String>(
-                    value: nivelItem,
-                    child: Text(nivelItem),
-                  ),).toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => nivel = value);
-                    }
-                  },
+                onChanged: (value) async {
+                  if (value.length >= 2) {
+                    setDialogState(() => isSearching = true);
+                    final results = await _buscarHabilidades(value);
+                    setDialogState(() {
+                      searchResults = results;
+                      isSearching = false;
+                    });
+                  } else {
+                    setDialogState(() => searchResults = []);
+                  }
+                },
+              ),
+              const SizedBox(height: 15),
+
+              // --- DROPDOWN DE NIVEL ---
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Nivel',
+                  border: OutlineInputBorder(),
                 ),
-                const SizedBox(height: 15),
-                if (isSearching)
-                  const Center(child: CircularProgressIndicator())
-                else if (searchResults.isNotEmpty)
-                  Expanded(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: searchResults.length,
-                      itemBuilder: (context, index) {
-                        final skill = searchResults[index];
-                        return ListTile(
-                          title: Text(skill['name']),
-                          trailing: Text(nivel),
-                          onTap: () {
-                            _agregarHabilidadUsuario(skill['id'], nivel);
-                            Navigator.pop(context);
-                          },
-                        );
+                value: nivel,
+                items: nivelesHabilidad.map((nivelItem) => DropdownMenuItem<String>(
+                  value: nivelItem,
+                  child: Text(nivelItem),
+                )).toList(),
+                onChanged: (value) {
+                  if (value != null) {
+                    setDialogState(() => nivel = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 15),
+
+              // --- LISTA DE RESULTADOS ---
+              if (isSearching)
+                const Center(child: CircularProgressIndicator())
+              else if (searchResults.isNotEmpty)
+                Expanded(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: searchResults.length,
+                    itemBuilder: (context, index) {
+                      final skill = searchResults[index];
+                      
+                      // CORRECCIÓN: Aquí mostramos directamente el nombre de la habilidad.
+                      // No necesitamos lógica de traducción de "Cliente/Proveedor" aquí.
+                      return ListTile(
+                        leading: const Icon(Icons.handyman_outlined), // Icono decorativo opcional
+                        title: Text(skill['name'] ?? 'Habilidad sin nombre'),
+                        subtitle: Text('Nivel seleccionado: $nivel'),
+                        onTap: () async {
+                          // Al tocar, agregamos la habilidad
+                          await _agregarHabilidadUsuario(skill['id'], nivel);
+                          if (context.mounted) Navigator.pop(context);
+                        },
+                      );
+                    },
+                  ),
+                )
+              // --- OPCIÓN DE CREAR NUEVA SI NO EXISTE ---
+              else if (_searchSkillController.text.isNotEmpty)
+                Column(
+                  children: [
+                    const Text('No se encontraron resultados'),
+                    const SizedBox(height: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setDialogState(() => isSearching = true);
+                        try {
+                          final newSkill = await _crearNuevaHabilidad(_searchSkillController.text);
+                          if (newSkill != null) {
+                            await _agregarHabilidadUsuario(newSkill['id'], nivel);
+                          }
+                          if (context.mounted) Navigator.pop(context);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Error: $e')),
+                            );
+                          }
+                        } finally {
+                          if (context.mounted) {
+                            setDialogState(() => isSearching = false);
+                          }
+                        }
                       },
+                      child: const Text('Crear nueva habilidad'),
                     ),
-                  )
-                else if (_searchSkillController.text.isNotEmpty)
-                    Column(
-                      children: [
-                        const Text('No se encontraron resultados'),
-                        const SizedBox(height: 10),
-                        ElevatedButton(
-                          onPressed: () async {
-                            setDialogState(() => isSearching = true);
-                            try {
-                              final newSkill = await _crearNuevaHabilidad(_searchSkillController.text);
-                              if (newSkill != null) {
-                                await _agregarHabilidadUsuario(newSkill['id'], nivel);
-                              }
-                              if (context.mounted) {
-                                Navigator.pop(context);
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Error: $e')),
-                                );
-                              }
-                            } finally {
-                              if (context.mounted) {
-                                setDialogState(() => isSearching = false);
-                              }
-                            }
-                          },
-                          child: const Text('Crear nueva habilidad'),
-                        ),
-                      ],
-                    ),
-              ],
-            ),
+                  ],
+                ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
-            ),
-          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+        ],
       ),
-    ).then((_) => _searchSkillController.clear());
-  }
+    ),
+  ).then((_) => _searchSkillController.clear());
+}
 
   void _navigateToSettings() async {
     final result = await Navigator.push(
@@ -1164,8 +1183,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
             );
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
+            foregroundColor: Colors.black,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
           child: const Text('Iniciar Sesión'),
@@ -1183,265 +1201,273 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(
-        title: const Text('Perfil'),
-        centerTitle: false,
-        backgroundColor: Colors.blue,
-        elevation: 2,
-        shadowColor: Colors.blue.withOpacity(0.3),
-        actions: [
-          if (isUserLoggedIn)
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: _navigateToSettings,
-            ),
-        ],
-      ),
-      backgroundColor: Colors.white,
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : !isUserLoggedIn
-          ? _buildNoSessionWidget()
-          : SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Foto de perfil
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 50,
-                  backgroundImage: NetworkImage(imageUrl ?? 'https://placehold.co/100'),
-                  onBackgroundImageError: (_, __) => const Icon(Icons.error),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: GestureDetector(
-                    onTap: _actualizarFotoPerfil,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: Colors.blue,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Información básica
-            Text(
-              '$firstName $lastName',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 5),
-
-            // Calificaciones
-            isLoadingReviews
-                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 20),
-                const SizedBox(width: 5),
-                Text(
-                  averageRating.toStringAsFixed(1),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  '($totalReviews ${totalReviews == 1 ? 'review' : 'reviews'})',
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Descripción
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Sobre mí', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: Icon(_isEditingDescription ? Icons.check : Icons.edit, size: 18),
-                  onPressed: () {
-                    if (_isEditingDescription) {
-                      _actualizarDescripcion(_descripcionController.text);
-                    }
-                    setState(() => _isEditingDescription = !_isEditingDescription);
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-
-            _isEditingDescription
-                ? TextField(
-              controller: _descripcionController,
-              maxLines: 4,
-              decoration: const InputDecoration(
-                hintText: 'Escribe algo sobre ti...',
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.all(10),
+  Widget build(BuildContext context) {
+      final l10n = AppLocalizations.of(context)!;
+      
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(l10n.profileTitle),
+          centerTitle: false,
+          elevation: 2,
+          actions: [
+            if (isUserLoggedIn)
+              IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: _navigateToSettings,
               ),
-            )
-                : Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                descripcion ?? 'Sin descripción',
-                style: const TextStyle(color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 15),
-
-            // Habilidades
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Habilidades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  onPressed: _mostrarDialogoAgregarHabilidad,
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                ...userSkills.map((skill) => _buildSkillChip(
-                  skill['name'],
-                  nivel: skill['nivel'],
-                  onDeleted: () => _eliminarHabilidadUsuario(skill['id']),
-                ),),
-                if (userSkills.isEmpty)
-                  const Text('No hay habilidades añadidas', style: TextStyle(color: Colors.grey)),
-              ],
-            ),
-            _buildLocationSection(),
-            const SizedBox(height: 15),
-
-            // Categorías y oficios
-            if (_userCategories.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ],
+        ),
+        backgroundColor: Colors.white,
+        body: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : !isUserLoggedIn
+            ? _buildNoSessionWidget()
+            : SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // Foto de perfil
+              Stack(
                 children: [
-                  const Text('Especialidades', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  IconButton(
-                    icon: const Icon(Icons.edit),
-                    onPressed: () => _navigateToUpdateCategories(context),
+                  CircleAvatar(
+                    radius: 50,
+                    backgroundImage: NetworkImage(imageUrl ?? 'https://placehold.co/100'),
+                    onBackgroundImageError: (_, __) => const Icon(Icons.error),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: GestureDetector(
+                      onTap: _actualizarFotoPerfil,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.blue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              ..._userCategories.map((category) {
-                final categoryId = category['id'] as int;
-                final oficios = _userOficios[categoryId] ?? [];
 
-                return Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade200),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.category, color: Colors.blue.shade700, size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              category['name'],
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (oficios.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: oficios.map((oficio) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.blue.shade300),
-                            ),
-                            child: Text(
-                              oficio['name'],
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.blue.shade600,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),).toList(),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              }),
-              const SizedBox(height: 15),
-            ],
+              // Información básica
+              Text(
+                '$firstName $lastName',
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 5),
 
-            // Tabs
-            TabBar(
-              controller: _tabController,
-              labelColor: Colors.blue,
-              unselectedLabelColor: Colors.grey,
-              indicatorColor: Colors.blue,
-              tabs: const [
-                Tab(text: 'Trabajos'),
-                Tab(text: 'Comentarios'),
-                Tab(text: 'Ajustes'),
-              ],
-            ),
-
-            // Contenido de tabs
-            Container(
-              constraints: const BoxConstraints(minHeight: 300, maxHeight: 500),
-              child: TabBarView(
-                controller: _tabController,
+              // Calificaciones
+              isLoadingReviews
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SingleChildScrollView(child: _buildTrabajos()),
-                  isLoadingReviews
-                      ? const Center(child: CircularProgressIndicator())
-                      : SingleChildScrollView(child: _buildComentarios()),
-                  SingleChildScrollView(child: _buildAjustes()),
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                  const SizedBox(width: 5),
+                  Text(
+                    averageRating.toStringAsFixed(1),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '($totalReviews ${totalReviews == 1 ? 'review' : 'reviews'})',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+
+              // Descripción
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(l10n.aboutMe, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: Icon(_isEditingDescription ? Icons.check : Icons.edit, size: 18),
+                    onPressed: () {
+                      if (_isEditingDescription) {
+                        _actualizarDescripcion(_descripcionController.text);
+                      }
+                      setState(() => _isEditingDescription = !_isEditingDescription);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
+
+              _isEditingDescription
+                  ? TextField(
+                controller: _descripcionController,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Escribe algo sobre ti...',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(10),
+                ),
+              )
+                  : Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  descripcion ?? 'Sin descripción',
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              // Habilidades
+              if (_isWorker) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(l10n.skills, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: _mostrarDialogoAgregarHabilidad,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    ...userSkills.map((skill) => _buildSkillChip(
+                      skill['name'],
+                      nivel: skill['nivel'],
+                      onDeleted: () => _eliminarHabilidadUsuario(skill['id']),
+                    ),
+                    ),
+                    if (userSkills.isEmpty)
+                      Text(l10n.noAddedSkills, style: TextStyle(color: Colors.grey)),
+                  ],
+                ),
+              ],
+              
+              _buildLocationSection(),
+              const SizedBox(height: 15),
+
+              // Categorías y oficios
+              if (_isWorker && _userCategories.isNotEmpty) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(l10n.specialties, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.edit),
+                      onPressed: () => _navigateToUpdateCategories(context),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ..._userCategories.map((category) {
+                  final categoryId = category['id'] as int;
+                  final oficios = _userOficios[categoryId] ?? [];
+
+                  return Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.category, color: Colors.blue.shade700, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                category['name'],
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (oficios.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: oficios.map((oficio) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.blue.shade300),
+                              ),
+                              child: Text(
+                                oficio['name'],
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.blue.shade600,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 15),
+              ],
+
+              // Tabs
+              TabBar(
+                controller: _tabController,
+                labelColor: Colors.blue,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.blue,
+                tabs: [
+                  Tab(text: l10n.jobs),
+                  Tab(text: l10n.comments),
+                  Tab(text: l10n.settings),
+                ],
+              ),
+
+              // Contenido de tabs
+              Container(
+                constraints: const BoxConstraints(minHeight: 300, maxHeight: 500),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    SingleChildScrollView(child: _buildTrabajos()),
+                    isLoadingReviews
+                        ? const Center(child: CircularProgressIndicator())
+                        : SingleChildScrollView(child: _buildComentarios()),
+                    SingleChildScrollView(child: _buildAjustes()),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+      }
 
   // WIDGETS DE TABS
   Widget _buildTrabajos() {
+    final l10n = AppLocalizations.of(context)!;
+    
     if (_isLoadingTrabajos) {
       return const Center(
         child: Padding(
@@ -1460,7 +1486,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               Icon(Icons.work_off, size: 48, color: Colors.grey[400]),
               const SizedBox(height: 12),
               Text(
-                'No tienes trabajos completados',
+                l10n.noCompletedJobs,
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: 16,
@@ -1469,7 +1495,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 8),
               Text(
-                'Aquí aparecerán los servicios que has prestado o contratado',
+                l10n.completedJobs,
                 style: TextStyle(
                   color: Colors.grey[500],
                   fontSize: 14,
@@ -1482,9 +1508,15 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
       );
     }
 
-    final dateFormat = DateFormat('d MMMM, yyyy', 'es_CL');
+    // 1. Obtener idioma actual
+    final currentLocale = Localizations.localeOf(context).languageCode;
+
+    // 2. Formato de fecha automático (Ej: "14 de febrero de 2024" o "February 14, 2024")
+    final dateFormat = DateFormat.yMMMMd(currentLocale);
+    
+    // 3. Moneda adaptada al idioma
     final moneyFormat = NumberFormat.currency(
-      locale: 'es_CL',
+      locale: currentLocale, 
       symbol: '\$',
       decimalDigits: 0,
     );
@@ -1497,7 +1529,24 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               : DateTime.now();
 
           final esProveedor = trabajo['tipo'] == 'proveedor';
-          final titulo = trabajo['mostrar_como'] ?? trabajo['titulo'];
+          
+          // --- AQUÍ ESTÁ LA CORRECCIÓN ---
+          // Construimos los textos dinámicamente usando l10n
+          String tituloPrincipal;
+          String subtituloUsuario;
+
+          if (esProveedor) {
+            // Soy el trabajador
+            tituloPrincipal = trabajo['description'] ?? 'Servicio prestado';
+            // Puedes agregar un l10n.serviceProvidedTo si quieres traducirlo también
+            subtituloUsuario = 'Servicio prestado a ${trabajo['cliente_nombre'] ?? 'Cliente'}';
+          } else {
+            // Soy el cliente
+            tituloPrincipal = trabajo['description'] ?? l10n.serviceContracted;
+            // Aquí usamos la traducción que faltaba: "Service of..."
+            subtituloUsuario = '${l10n.serviceOf} ${trabajo['proveedor_nombre'] ?? 'Proveedor'}';
+          }
+
           final monto = trabajo['amount'] != null
               ? moneyFormat.format(trabajo['amount'])
               : '';
@@ -1523,7 +1572,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                 ),
               ),
               title: Text(
-                titulo,
+                tituloPrincipal, // Usamos la variable calculada arriba
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
@@ -1535,8 +1584,18 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 4),
+                  // Agregamos el texto de "Servicio de..." que faltaba
                   Text(
-                    'Completado el ${dateFormat.format(fecha)}',
+                    subtituloUsuario,
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${l10n.completed} ${dateFormat.format(fecha)}',
                     style: TextStyle(
                       color: Colors.grey[600],
                       fontSize: 13,
@@ -1562,7 +1621,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  esProveedor ? 'Prestado' : 'Contratado',
+                  esProveedor ? 'Prestado' : l10n.contracted,
                   style: TextStyle(
                     color: esProveedor ? Colors.green.shade700 : Colors.blue.shade700,
                     fontWeight: FontWeight.bold,
@@ -1582,7 +1641,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               );
             },
             icon: const Icon(Icons.work),
-            label: const Text('Ver todos mis trabajos'),
+            label: Text(l10n.showAllWork),
             style: TextButton.styleFrom(
               foregroundColor: Theme.of(context).primaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -1594,6 +1653,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
   }
 
   Widget _buildComentarios() {
+    final l10n = AppLocalizations.of(context)!;
     debugPrint('🔍 _buildComentarios - userRating: $userRating');
     debugPrint('🔍 _buildComentarios - totalReviews: ${userRating?.totalReviews}');
     debugPrint('🔍 _buildComentarios - reviews length: ${userRating?.reviews.length}');
@@ -1612,7 +1672,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 12),
               Text(
-                'No hay comentarios disponibles',
+                l10n.noCommentsAvaliable,
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -1621,7 +1681,7 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
               ),
               const SizedBox(height: 8),
               Text(
-                'Los comentarios de tus clientes aparecerán aquí',
+                l10n.allCommentsOfUsers,
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey[500],
@@ -1643,7 +1703,9 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           ...reviewsToShow.asMap().entries.map((entry) {
             final index = entry.key;
             final review = entry.value;
-            final dateFormat = DateFormat('d MMM yyyy', 'es_CL');
+            
+            final currentLocale = Localizations.localeOf(context).languageCode;
+            final dateFormat = DateFormat.yMMMMd(currentLocale); // Fecha larga automática
 
             return Column(
               children: [
@@ -1697,13 +1759,12 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ...List.generate(5, (starIndex) {
-                                  return Icon(
+                                ...List.generate(5, (starIndex) => Icon(
                                     starIndex < review.rating ? Icons.star : Icons.star_border,
                                     color: Colors.amber,
                                     size: 16,
-                                  );
-                                }),
+                                  ),
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${review.rating}',
@@ -1777,35 +1838,122 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildLocationSection() => Column(
-    children: [
+  Widget _buildLocationSection(){
+    final l10n = AppLocalizations.of(context)!;
+    return Column(children: [
       const SizedBox(height: 15),
+
+      // SECCIÓN EXCLUSIVA DE TRABAJADOR (Agenda y Switch)
+      if (isUserLoggedIn && _isWorker) ...[
+        const WorkerStatusSwitch(),
+        
+        const SizedBox(height: 12),
+        
+        // Botón de Agenda
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WorkerScheduleScreen()),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.calendar_month, color: Colors.orange.shade700, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.scheduleWeek,
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.scheduleWeekSubtitle,
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const WorkerAgendaScreen()),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50, 
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.event_note, color: Colors.green.shade700, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.scheduledVisits,
+                        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.scheduledVisitsSubtitle,
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey.shade400),
+              ],
+            ),
+          ),
+        ),
+        
+        const SizedBox(height: 24), // Espacio separador
+      ],
+
+      // SECCIÓN COMÚN (Ubicación - visible para todos para envíos/referencia)
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Mi Ubicación',
+          Text(
+            l10n.location,
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           IconButton(
             icon: const Icon(Icons.edit_location),
-            onPressed: () {
-              if (kDebugMode) {
-                print('🔵 IconButton presionado - llamando _navigateToUpdateLocation');
-              }
-              _navigateToUpdateLocation();
-            },
+            onPressed: () => _navigateToUpdateLocation(),
           ),
         ],
       ),
       const SizedBox(height: 8),
       GestureDetector(
-        onTap: () {
-          if (kDebugMode) {
-            print('🔵 Container presionado - llamando _navigateToUpdateLocation');
-          }
-          _navigateToUpdateLocation();
-        },
+        onTap: () => _navigateToUpdateLocation(),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
@@ -1816,52 +1964,38 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.location_on,
-                color: Colors.blue.shade700,
-                size: 24,
-              ),
+              Icon(Icons.location_on, color: Colors.blue.shade700, size: 24),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Ubicación de trabajo',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 14,
-                      ),
+                    Text(
+                      l10n.currentLocation, // Texto genérico para ambos roles
+                      style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
                     ),
                     const SizedBox(height: 4),
                     _isLoadingLocation
-                        ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                        ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : Text(
-                      _currentLocationAddress,
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontSize: 13,
-                      ),
-                    ),
+                            _currentLocationAddress,
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey.shade400,
-              ),
+              Icon(Icons.chevron_right, color: Colors.grey.shade400),
             ],
           ),
         ),
       ),
     ],
   );
+  }
 
-  Widget _buildAjustes() => Column(
+  Widget _buildAjustes(){
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
     mainAxisSize: MainAxisSize.min,
     children: [
       const Padding(
@@ -1874,26 +2008,29 @@ class _PerfilScreenState extends State<PerfilScreen> with SingleTickerProviderSt
           ),
         ),
       ),
-      ListTile(
+        ListTile(
         leading: const Icon(Icons.person),
-        title: const Text('Información personal'),
-        subtitle: const Text('Actualiza tu nombre, email y contraseña'),
+        title: Text(l10n.personalInfo),
+        subtitle: Text(l10n.updatePersonalInfo),
         trailing: const Icon(Icons.chevron_right),
         onTap: _navigateToSettings,
       ),
-      ListTile(
-        leading: const Icon(Icons.work),
-        title: const Text('Especialidades'),
-        subtitle: const Text('Gestionar categorías y oficios'),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => _navigateToUpdateCategories(context),
-      ),
-      const Divider(),
+      if (_isWorker) ...[
+        ListTile(
+          leading: const Icon(Icons.work),
+          title: Text(l10n.specialties),
+          subtitle: Text(l10n.updateSpecialties),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _navigateToUpdateCategories(context),
+        ),
+        const Divider(),
+      ],
       ListTile(
         leading: const Icon(Icons.logout, color: Colors.red),
-        title: const Text('Cerrar sesión', style: TextStyle(color: Colors.red)),
+        title: Text(l10n.logout, style: TextStyle(color: Colors.red)),
         onTap: logout,
       ),
     ],
   );
+}
 }

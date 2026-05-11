@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:flutter_chat_ui/flutter_chat_ui.dart';
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../../services/budget_proposal_service.dart';
 import '../../services/notification_service.dart';
@@ -28,11 +31,14 @@ class RoomPage extends StatefulWidget {
 class _RoomPageState extends State<RoomPage> {
   bool _isAttachmentUploading = false;
   late SupabaseChatController _chatController;
+  types.User? _localUser;
+  String _realUserRole = 'user';
 
   @override
   void initState() {
     _chatController = SupabaseChatController(room: widget.room);
     super.initState();
+    _loadLocalCurrentUser();
   }
 
   @override
@@ -41,10 +47,48 @@ class _RoomPageState extends State<RoomPage> {
     super.dispose();
   }
 
+  Future<void> _loadLocalCurrentUser() async {
+    final sbUser = SupabaseChatCore.instance.loggedSupabaseUser;
+    if (sbUser == null) return;
+
+    try {
+      // Usamos la configuración del core para saber de qué tabla sacar los datos
+      final tableName = SupabaseChatCore.instance.config.usersTableName;
+      final schema = SupabaseChatCore.instance.config.schema;
+      
+      final data = await Supabase.instance.client
+          .schema(schema)
+          .from(tableName)
+          .select()
+          .eq('id', sbUser.id)
+          .single();
+ 
+      // Convertimos el mapa a mutable y cambiamos 'worker' por 'user' solo localmente
+      final Map<String, dynamic> safeData = Map<String, dynamic>.from(data);
+      
+      final dbRole = safeData['role'] as String?;
+      _realUserRole = dbRole ?? 'user';
+
+      if (safeData['role'] == 'worker') {
+        safeData['role'] = 'user'; // Engañamos solo a la UI del chat
+      }
+
+      if (mounted) {
+        setState(() {
+          _localUser = types.User.fromJson(safeData);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error recuperando usuario local: $e');
+    }
+  }
+
   void _handleAttachmentPressed() {
     showModalBottomSheet<void>(
       context: context,
-      builder: (BuildContext context) => SafeArea(
+      builder: (BuildContext context) { 
+        final l10n = AppLocalizations.of(context)!;
+        return SafeArea(
         child: SizedBox(
           height: 130,
           child: Padding(
@@ -58,10 +102,10 @@ class _RoomPageState extends State<RoomPage> {
                     Navigator.pop(context);
                     _handleImageSelection();
                   },
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.image),
-                      Text('Imagen'),
+                      Text(l10n.image),
                     ],
                   ),
                 ),
@@ -70,10 +114,10 @@ class _RoomPageState extends State<RoomPage> {
                     Navigator.pop(context);
                     _handleFileSelection();
                   },
-                  child: const Row(
+                  child: Row(
                     children: [
                       Icon(Icons.attach_file),
-                      Text('Archivo'),
+                      Text(l10n.file),
                     ],
                   ),
                 ),
@@ -81,7 +125,8 @@ class _RoomPageState extends State<RoomPage> {
             ),
           ),
         ),
-      ),
+      );
+      },
     );
   }
 
@@ -186,36 +231,33 @@ class _RoomPageState extends State<RoomPage> {
     }
   }
 
-// Modificar el método _handleAcceptProposal en RoomPage para que después de aceptar
-// una propuesta, cree el mensaje de confirmación de servicio
+// Modificar el método _handleAcceptProposal en RoomPage para que después de aceptar una propuesta, cree el mensaje de confirmación de servicio
   Future<void> _handleAcceptProposal(BudgetProposal proposal) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       await BudgetProposalService.acceptProposal(proposal.id);
 
       // Enviar mensaje al chat informando sobre la aceptación
       final message = types.PartialText(
-        text: '✅ Propuesta de presupuesto ACEPTADA: \$${proposal.amount.toStringAsFixed(0)}',
+        text: '${l10n.budgetAccept} \$${proposal.amount.toStringAsFixed(0)}',
       );
 
       await SupabaseChatCore.instance.sendMessage(
         message,
         widget.room.id,
       );
-
-      // Crear mensaje para verificar la finalización del servicio
-      await _createServiceCompletionMessage(proposal.id);
-
+      
       // Notificar al remitente original
       await NotificationService.sendNewMessageNotification(
         proposal.senderId,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
-        'Tu propuesta de presupuesto ha sido ACEPTADA',
+        l10n.yourBudgetAccept,
         widget.room.id,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Has aceptado la propuesta de presupuesto'),
+        SnackBar(
+          content: Text(l10n.uHvAccept),
           backgroundColor: Colors.green,
         ),
       );
@@ -223,7 +265,7 @@ class _RoomPageState extends State<RoomPage> {
       debugPrint('Error al aceptar propuesta: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al aceptar propuesta: ${e.toString()}'),
+          content: Text('${l10n.errorAccepting} ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -287,6 +329,7 @@ class _RoomPageState extends State<RoomPage> {
   }
 
   Future<void> _sendBudgetProposal(double amount, String description) async {
+    final l10n = AppLocalizations.of(context)!;
     final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
     if (currentUserId == null) return;
 
@@ -324,13 +367,13 @@ class _RoomPageState extends State<RoomPage> {
       await NotificationService.sendNewMessageNotification(
         otherUser.id,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
-        'Nueva propuesta de presupuesto: \$${amount.toStringAsFixed(0)}',
+        '${l10n.newBudgetProp} \$${amount.toStringAsFixed(0)}',
         widget.room.id,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Propuesta de presupuesto enviada'),
+        SnackBar(
+          content: Text(l10n.propSended),
           backgroundColor: Colors.green,
         ),
       );
@@ -338,7 +381,7 @@ class _RoomPageState extends State<RoomPage> {
       debugPrint('Error al enviar propuesta de presupuesto: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al enviar propuesta: ${e.toString()}'),
+          content: Text('${l10n.errorSendProp} ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -347,6 +390,7 @@ class _RoomPageState extends State<RoomPage> {
 
   // Función para construir el indicador de propuesta activa
   Widget _buildActiveProposalIndicator(List<BudgetProposal> proposals) {
+    final l10n = AppLocalizations.of(context)!;
     // Encontrar propuesta pendiente más reciente
     final pendingProposal = proposals.where((p) => p.status == 'pending').toList();
     if (pendingProposal.isEmpty) return const SizedBox.shrink();
@@ -375,7 +419,7 @@ class _RoomPageState extends State<RoomPage> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Tienes una propuesta de presupuesto pendiente',
+                  l10n.pendingProp,
                   style: TextStyle(color: Colors.amber[800]),
                 ),
               ),
@@ -383,7 +427,7 @@ class _RoomPageState extends State<RoomPage> {
                 onPressed: () {
                   // Hacer scroll hasta el mensaje de la propuesta
                 },
-                child: const Text('Ver'),
+                child: Text(l10n.view),
               ),
             ],
           ),
@@ -394,12 +438,13 @@ class _RoomPageState extends State<RoomPage> {
 
 // Manejar el rechazo de una propuesta
   Future<void> _handleRejectProposal(BudgetProposal proposal) async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       await BudgetProposalService.rejectProposal(proposal.id);
 
       // Enviar mensaje al chat informando sobre el rechazo
       final message = types.PartialText(
-        text: '❌ Propuesta de presupuesto RECHAZADA: \$${proposal.amount.toStringAsFixed(0)}',
+        text: '${l10n.budgetRejected} \$${proposal.amount.toStringAsFixed(0)}',
       );
 
       await SupabaseChatCore.instance.sendMessage(
@@ -411,13 +456,13 @@ class _RoomPageState extends State<RoomPage> {
       await NotificationService.sendNewMessageNotification(
         proposal.senderId,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
-        'Tu propuesta de presupuesto ha sido RECHAZADA',
+        l10n.yourBudgetRejected,
         widget.room.id,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Has rechazado la propuesta de presupuesto'),
+        SnackBar(
+          content: Text(l10n.uHvReject),
           backgroundColor: Colors.orange,
         ),
       );
@@ -425,7 +470,7 @@ class _RoomPageState extends State<RoomPage> {
       debugPrint('Error al rechazar propuesta: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al rechazar propuesta: ${e.toString()}'),
+          content: Text('${l10n.errorRejectBudget} ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -434,6 +479,7 @@ class _RoomPageState extends State<RoomPage> {
 
 // Mostrar diálogo para crear una contrapropuesta
   void _handleCounterProposal(BudgetProposal originalProposal) {
+    final l10n = AppLocalizations.of(context)!;
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
 
@@ -444,14 +490,14 @@ class _RoomPageState extends State<RoomPage> {
     showDialog(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Crear Contrapropuesta'),
+        title: Text(l10n.countProp),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: amountController,
-              decoration: const InputDecoration(
-                labelText: 'Monto',
+              decoration: InputDecoration(
+                labelText: l10n.amount,
                 prefixIcon: Icon(Icons.attach_money),
               ),
               keyboardType: TextInputType.number,
@@ -460,8 +506,8 @@ class _RoomPageState extends State<RoomPage> {
             const SizedBox(height: 16),
             TextField(
               controller: descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Descripción',
+              decoration: InputDecoration(
+                labelText: l10n.description,
                 prefixIcon: Icon(Icons.description),
               ),
               maxLines: 3,
@@ -471,7 +517,7 @@ class _RoomPageState extends State<RoomPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
           ),
           ElevatedButton(
             onPressed: () {
@@ -484,7 +530,7 @@ class _RoomPageState extends State<RoomPage> {
                 Navigator.pop(context);
               }
             },
-            child: const Text('Enviar Contrapropuesta'),
+            child: Text(l10n.sendCountProp),
           ),
         ],
       ),
@@ -497,6 +543,7 @@ class _RoomPageState extends State<RoomPage> {
       double amount,
       String description,
       ) async {
+    final l10n = AppLocalizations.of(context)!;    
     final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
     if (currentUserId == null) return;
 
@@ -528,13 +575,13 @@ class _RoomPageState extends State<RoomPage> {
       await NotificationService.sendNewMessageNotification(
         originalProposal.senderId,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
-        'Nueva contrapropuesta de presupuesto: \$${amount.toStringAsFixed(0)}',
+        '${l10n.newCountProp} \$${amount.toStringAsFixed(0)}',
         widget.room.id,
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Contrapropuesta enviada'),
+        SnackBar(
+          content: Text(l10n.sendedCountProp),
           backgroundColor: Colors.green,
         ),
       );
@@ -542,7 +589,7 @@ class _RoomPageState extends State<RoomPage> {
       debugPrint('Error al enviar contrapropuesta: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al enviar contrapropuesta: ${e.toString()}'),
+          content: Text('${l10n.errorSendingCountProp} ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -550,20 +597,21 @@ class _RoomPageState extends State<RoomPage> {
   }
 
   void _showBudgetDialog() {
+    final l10n = AppLocalizations.of(context)!;
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-          title: const Text('Crear Presupuesto'),
+          title: Text(l10n.createBudget),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: amountController,
-                decoration: const InputDecoration(
-                  labelText: 'Monto',
+                decoration: InputDecoration(
+                  labelText: l10n.amount,
                   prefixIcon: Icon(Icons.attach_money),
                 ),
                 keyboardType: TextInputType.number,
@@ -572,8 +620,8 @@ class _RoomPageState extends State<RoomPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Descripción',
+                decoration: InputDecoration(
+                  labelText: l10n.description,
                   prefixIcon: Icon(Icons.description),
                 ),
                 maxLines: 3,
@@ -583,7 +631,7 @@ class _RoomPageState extends State<RoomPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancelar'),
+              child: Text(l10n.cancel),
             ),
             ElevatedButton(
               onPressed: () {
@@ -595,7 +643,7 @@ class _RoomPageState extends State<RoomPage> {
                   Navigator.pop(context);
                 }
               },
-              child: const Text('Enviar'),
+              child: Text(l10n.send),
             ),
           ],
         ),
@@ -603,10 +651,12 @@ class _RoomPageState extends State<RoomPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) { 
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
     appBar: AppBar(
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      title: const Text('Conversación'),
+      title: Text(l10n.conversation),
       actions: [
         PopupMenuButton<String>(
           onSelected: (value) {
@@ -615,13 +665,13 @@ class _RoomPageState extends State<RoomPage> {
             }
           },
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-            const PopupMenuItem<String>(
+            PopupMenuItem<String>(
               value: 'budget',
               child: Row(
                 children: [
                   Icon(Icons.attach_money),
                   SizedBox(width: 8),
-                  Text('Presupuesto'),
+                  Text(l10n.budget),
                 ],
               ),
             ),
@@ -637,11 +687,19 @@ class _RoomPageState extends State<RoomPage> {
         stream: _chatController.typingUsers,
         builder: (context, users) => StreamBuilder<List<BudgetProposal>>(
           initialData: const [],
-          stream: Stream.fromFuture(
-            BudgetProposalService.getProposalsForRoom(widget.room.id),
-          ),
+          stream: BudgetProposalService.getProposalsStream(widget.room.id), 
           builder: (context, proposals) {
             final messagesList = messages.data ?? [];
+
+            final currentUser = _localUser;
+
+            if (currentUser == null) {
+              return const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
 
             // Procesar mensajes personalizados para propuestas de presupuesto
             final processedMessages = messagesList.map((message) {
@@ -657,7 +715,7 @@ class _RoomPageState extends State<RoomPage> {
                       break;
                     }
                   }
-                }
+                } 
 
                 if (proposal != null) {
                   // Reemplazar con un widget personalizado para la propuesta
@@ -690,7 +748,7 @@ class _RoomPageState extends State<RoomPage> {
                   onMessageTap: _handleMessageTap,
                   onPreviewDataFetched: _handlePreviewDataFetched,
                   onSendPressed: _handleSendPressed,
-                  user: SupabaseChatCore.instance.loggedUser!,
+                  user: currentUser,
                   imageHeaders: SupabaseChatCore.instance.httpSupabaseHeaders,
                   onMessageVisibilityChanged: (message, visible) async {
                     if (message.status != types.Status.seen &&
@@ -707,23 +765,46 @@ class _RoomPageState extends State<RoomPage> {
                     enabled: true,
                     onTextChanged: (text) => _chatController.onTyping(),
                   ),
-                  // Agregar esta parte para renderizar mensajes personalizados
-                  // En el widget Chat del método build
                   customMessageBuilder: (message, {required messageWidth}) {
+                    // 1. Manejo de Propuestas de Presupuesto
                     if (message.metadata?['type'] == 'budget_proposal') {
-                      final proposalJson = message.metadata?['proposal'];
-                      if (proposalJson != null) {
-                        final proposal = BudgetProposal.fromJson(proposalJson);
-                        return BudgetProposalMessage(
-                          proposal: proposal,
-                          currentUser: SupabaseChatCore.instance.loggedUser!,
-                          onAccept: _handleAcceptProposal,
-                          onReject: _handleRejectProposal,
-                          onCounter: _handleCounterProposal,
-                        );
+                      final proposalData = message.metadata?['proposal'];
+                      
+                      if (proposalData != null) {
+                        try {
+                          final safeJson = Map<String, dynamic>.from(proposalData as Map);
+                          final proposal = BudgetProposal.fromJson(safeJson);
+                          
+                          // Verificación de seguridad para el usuario
+                          final currentUser = _localUser;
+                          if (currentUser == null) return const SizedBox.shrink();
+
+                          final amITheWorker = _realUserRole == 'worker';
+
+                          debugPrint('🔎 DEBUG ROL:');
+                          debugPrint('👤 Mi ID actual: ${currentUser.id}');
+                          debugPrint('📤 ID del Sender (Propuesta): ${proposal.senderId}');
+
+                          return BudgetProposalMessage(
+                            proposal: proposal,
+                            currentUser: currentUser,
+                            amITheWorker: amITheWorker,
+                            onAccept: _handleAcceptProposal,
+                            onReject: _handleRejectProposal,
+                            onCounter: _handleCounterProposal,
+                          );
+                        } catch (e) {
+                          debugPrint('Error al renderizar propuesta: $e');
+                          return Container(
+                            padding: const EdgeInsets.all(8),
+                            color: Colors.red[100],
+                            child: Text('${l10n.errorShowingProp} $e'),
+                          );
+                        }
                       }
                     }
-                    // Manejar mensajes de confirmación de servicio
+                    
+                    // 2. Manejo de Confirmación de Servicio
                     else if (message.metadata?['type'] == 'service_completion') {
                       final proposalId = message.metadata?['proposal_id'];
                       if (proposalId != null) {
@@ -731,7 +812,11 @@ class _RoomPageState extends State<RoomPage> {
                           future: BudgetProposalService.getProposalById(proposalId),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const Center(child: CircularProgressIndicator());
+                              return const SizedBox(
+                                width: 20, 
+                                height: 20, 
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              );
                             }
 
                             if (!snapshot.hasData || snapshot.data == null) {
@@ -741,8 +826,7 @@ class _RoomPageState extends State<RoomPage> {
                             return ServiceCompletionMessage(
                               proposal: snapshot.data!,
                               onServiceUpdated: () {
-                                // Actualizar la UI si es necesario
-                                setState(() {});
+                                if (mounted) setState(() {});
                               },
                             );
                           },
@@ -764,4 +848,5 @@ class _RoomPageState extends State<RoomPage> {
       ),
     ),
   );
+  }
 }

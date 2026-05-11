@@ -2,12 +2,13 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:http/http.dart' as http;
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../services/review_service.dart';
 import '../../../widgets/user_offers_widget.dart';
+import '../../../widgets/worker_week_schedule_widget.dart';
 import '../../chat/room.dart';
 
 class UserProfileViewScreen extends StatefulWidget {
@@ -1345,11 +1346,9 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
       appBar: AppBar(
         title: Text(isLoading ? (widget.userName ?? 'Perfil') : '$firstName $lastName'),
         centerTitle: false,
-        backgroundColor: Colors.blue,
         elevation: 2,
         shadowColor: Colors.blue.withOpacity(0.3),
       ),
-      backgroundColor: Colors.white,
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
@@ -1456,6 +1455,9 @@ class _UserProfileViewScreenState extends State<UserProfileViewScreen> {
 
             // Sección de ubicación
             _buildLocationSection(),
+            const SizedBox(height: 15),
+
+            WorkerWeekScheduleWidget(userId: widget.userId),
             const SizedBox(height: 15),
 
             // Categorías y oficios

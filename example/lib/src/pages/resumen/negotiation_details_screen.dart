@@ -1,8 +1,9 @@
 // Archivo: lib/screens/negotiation_details_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:intl/intl.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+
 import '../../services/budget_proposal_service.dart';
 import '../../widgets/user_negotiation.dart';
 import '../chat/room.dart';

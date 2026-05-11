@@ -142,7 +142,6 @@ class _UpdateCategoriesScreenState extends State<UpdateCategoriesScreen> {
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
                   ),
                   child: const Text('Cerrar'),
@@ -425,8 +424,7 @@ class _UpdateCategoriesScreenState extends State<UpdateCategoriesScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Especialidades'),
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
+          foregroundColor: Colors.black,
           actions: [
             if (_hasChanges)
               TextButton(

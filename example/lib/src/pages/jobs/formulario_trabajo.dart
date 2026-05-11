@@ -6,13 +6,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http_client; // ✅ CORREGIDO: Alias para http
+import 'package:http/http.dart' as http_client;
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../l10n/generated/app_localizations.dart';
 import '../../../supabase_options.dart';
 
 class FormularioTrabajo extends StatefulWidget {
@@ -34,20 +35,21 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
   bool _isLoadingAddress = true;
 
   // Variables para búsqueda de categorías
-  List<Map<String, dynamic>> _searchResults = [];
-  bool _isSearchingCategories = false;
+  List<Map<String, dynamic>> _allCategories = [];
+  bool _isLoadingCategories = false;
+  
   String? _categoriaSeleccionada;
   int? _categoriaSeleccionadaId;
 
   final TextEditingController _tituloController = TextEditingController();
   final TextEditingController _descripcionController = TextEditingController();
   final TextEditingController _montoController = TextEditingController();
-  final TextEditingController _searchCategoryController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadUserSavedLocation();
+    _loadAllCategories();
   }
 
   @override
@@ -55,11 +57,34 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     _tituloController.dispose();
     _descripcionController.dispose();
     _montoController.dispose();
-    _searchCategoryController.dispose();
     super.dispose();
   }
 
-  // ✅ MÉTODO CORREGIDO para geocodificación inversa:
+  // Cargar todas las categorías disponibles
+  Future<void> _loadAllCategories() async {
+    setState(() => _isLoadingCategories = true);
+    
+    try {
+      final supabase = Supabase.instance.client;
+      final data = await supabase
+          .schema('jobs')
+          .from('categories')
+          .select('id, name')
+          .order('name');
+
+      if (mounted) {
+        setState(() {
+          _allCategories = List<Map<String, dynamic>>.from(data);
+          _isLoadingCategories = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando categorías: $e');
+      if (mounted) setState(() => _isLoadingCategories = false);
+    }
+  }
+
+  // Método para geocodificación inversa:
   Future<String> _getAddressFromCoordinates(double lat, double lng) async {
     try {
       // Usando la API de Nominatim (OpenStreetMap) - es gratuita
@@ -104,7 +129,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     }
   }
 
-  // ✅ MÉTODO para actualizar la dirección:
+  // MÉTODO para actualizar la dirección:
   Future<void> _updateLocationAddress(LatLng position) async {
     setState(() => _isLoadingAddress = true);
 
@@ -126,7 +151,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     }
   }
 
-  // ✅ MÉTODO CORREGIDO para cargar ubicación guardada:
+  // Método para cargar ubicación guardada:
   Future<void> _loadUserSavedLocation() async {
     setState(() => _isLoading = true);
 
@@ -162,11 +187,11 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
           _isLoading = false;
         });
 
-        // ✅ NUEVO: Cargar la dirección
+        // Cargar la dirección
         await _updateLocationAddress(position);
 
         if (kDebugMode) {
-          print('✅ Ubicación guardada cargada: $lat, $lng');
+          print('Ubicación guardada cargada: $lat, $lng');
         }
       } else {
         // No hay ubicación guardada, usar ubicación actual
@@ -181,12 +206,13 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     }
   }
 
-  // ✅ MÉTODO CORREGIDO para obtener ubicación actual:
+  // Método para obtener ubicación actual:
   Future<void> _getCurrentLocation() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _errorMessage = 'Servicios de ubicación deshabilitados');
+        setState(() => _errorMessage = l10n.ubiServiceDisable);
         return;
       }
 
@@ -194,7 +220,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          setState(() => _errorMessage = 'Permiso de ubicación denegado');
+          setState(() => _errorMessage = l10n.deniedLocationPermission);
           return;
         }
       }
@@ -211,20 +237,21 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
         _isLoading = false;
       });
 
-      // ✅ NUEVO: Cargar la dirección si no hay posición seleccionada previa
+      // Cargar la dirección si no hay posición seleccionada previa
       if (_selectedPosition == currentPos) {
         await _updateLocationAddress(currentPos);
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Error al obtener ubicación: $e';
+        _errorMessage = '${l10n.errorGettingUbi} $e';
         _isLoading = false;
       });
     }
   }
 
-  // ✅ MÉTODO CORREGIDO para abrir selector de ubicación:
+  // Método para abrir selector de ubicación:
   Future<void> _openLocationPicker() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_selectedPosition == null) return;
 
     final result = await Navigator.push(
@@ -243,64 +270,19 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       });
 
       // Mover el mapa a la nueva posición
-      _mapController.move(result, 18);
+      //_mapController.move(result, 18);
 
-      // ✅ NUEVO: Actualizar la dirección
+      // Actualizar la dirección
       await _updateLocationAddress(result);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📍 Ubicación de trabajo actualizada'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if(mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.savedUbi),
+            duration: Duration(seconds: 2),
+          ),
+        );
     }
-  }
-
-  // Buscar categorías en tiempo real
-  Future<void> _searchCategories(String query) async {
-    if (query.length < 2) {
-      setState(() {
-        _searchResults = [];
-      });
-      return;
-    }
-
-    setState(() => _isSearchingCategories = true);
-
-    try {
-      final supabase = Supabase.instance.client;
-      final data = await supabase
-          .schema('jobs')
-          .from('categories')
-          .select('id, name')
-          .ilike('name', '%$query%')
-          .order('name')
-          .limit(10);
-
-      setState(() {
-        _searchResults = List<Map<String, dynamic>>.from(data);
-        _isSearchingCategories = false;
-      });
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error al buscar categorías: $e');
-      }
-      setState(() {
-        _searchResults = [];
-        _isSearchingCategories = false;
-      });
-    }
-  }
-
-  // Seleccionar una categoría
-  void _selectCategory(Map<String, dynamic> category) {
-    setState(() {
-      _categoriaSeleccionada = category['name'];
-      _categoriaSeleccionadaId = category['id'];
-      _searchCategoryController.text = category['name'];
-      _searchResults = [];
-    });
   }
 
   void initializeSupabase() {
@@ -313,18 +295,19 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
   Future<void> _saveLocationToSupabase(double lat, double lon, String? imageUrl) async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
+    final l10n = AppLocalizations.of(context)!;
 
     if (user == null) {
-      _showErrorMessage('Usuario no autenticado');
+      _showErrorMessage(l10n.userNotAuth);
       return;
     }
 
     if (_categoriaSeleccionadaId == null) {
-      _showErrorMessage('Debe seleccionar una categoría');
+      _showErrorMessage(l10n.selectCategory);
       return;
     }
 
-    final location = 'POINT($lon $lat)';
+    final location = '${l10n.point}($lon $lat)';
 
     try {
       await supabase.schema('jobs').from('offers').insert({
@@ -338,12 +321,12 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       });
 
       // Mostrar mensaje de éxito
-      _showSuccessMessage('¡Trabajo publicado exitosamente!');
+      _showSuccessMessage(l10n.jobDoneMessage);
 
       // Limpiar formulario
       _clearForm();
 
-      // ✅ NUEVO: Volver al home (TrabajoPage) después de un delay
+      // Volver al home (TrabajoPage) después de un delay
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           // Navegar de vuelta al home y quitar todas las pantallas anteriores
@@ -355,11 +338,85 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       });
 
     } catch (e) {
-      _showErrorMessage('Error al guardar: $e');
+      _showErrorMessage('${l10n.errorSaving} $e');
     }
   }
 
-  // ✅ MÉTODO CORREGIDO para mostrar mensaje de éxito
+  void _showCategoryPicker() {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              l10n.selectOneCategorie,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            if (_isLoadingCategories)
+              const CircularProgressIndicator()
+            else if (_allCategories.isEmpty)
+              Text(l10n.noCategoryAvaliable)
+            else
+              Flexible(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _allCategories.length,
+                  itemBuilder: (context, index) {
+                    final category = _allCategories[index];
+                    final isSelected = _categoriaSeleccionadaId == category['id'];
+                    
+                    return ListTile(
+                      leading: Icon(
+                        // Mapeo simple de iconos (o usa el que viene de BD si tienes)
+                        _getCategoryIcon(category['name']),
+                        color: isSelected ? Colors.blue : Colors.grey,
+                      ),
+                      title: Text(
+                        category['name'],
+                        style: TextStyle(
+                          color: isSelected ? Colors.blue : Colors.black,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      trailing: isSelected ? const Icon(Icons.check, color: Colors.blue) : null,
+                      onTap: () {
+                        setState(() {
+                          _categoriaSeleccionada = category['name'];
+                          _categoriaSeleccionadaId = category['id'];
+                        });
+                        Navigator.pop(context); // Cierra el selector
+                      },
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper para iconos (opcional, expandible)
+  IconData _getCategoryIcon(String categoryName) {
+    switch (categoryName.toLowerCase()) {
+      case 'construcción': return Icons.construction;
+      case 'limpieza': return Icons.cleaning_services;
+      case 'jardinería': return Icons.yard;
+      case 'electricidad': return Icons.electric_bolt;
+      case 'gasfitería': return Icons.plumbing;
+      case 'tecnología': return Icons.computer;
+      default: return Icons.work_outline;
+    }
+  }
+
+  // Método para mostrar mensaje de éxito
   void _showSuccessMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -396,7 +453,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     );
   }
 
-  // Nuevo método para mostrar mensaje de error
+  // Método para mostrar mensaje de error
   void _showErrorMessage(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -433,19 +490,17 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
     );
   }
 
-  // Nuevo método para limpiar el formulario
+  // Método para limpiar el formulario
   void _clearForm() {
     setState(() {
       // Limpiar controladores de texto
       _tituloController.clear();
       _descripcionController.clear();
       _montoController.clear();
-      _searchCategoryController.clear();
 
       // Resetear variables de categoría
       _categoriaSeleccionada = null;
       _categoriaSeleccionadaId = null;
-      _searchResults = [];
 
       // Limpiar imagen seleccionada
       _selectedImage = null;
@@ -464,30 +519,31 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
   }
 
   Future<void> _pickImage() async {
+    final l10n = AppLocalizations.of(context)!;
     // Mostrar dialog con opciones
     final option = await showDialog<String>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: const Text('Seleccionar imagen'),
-        content: const Text('¿Cómo te gustaría seleccionar la imagen del trabajo?'),
+        title: Text(l10n.pickImage),
+        content: Text(l10n.imageQuestion),
         actions: [
           TextButton.icon(
             icon: const Icon(Icons.camera_alt),
-            label: const Text('Cámara'),
+            label: Text(l10n.camera),
             onPressed: () => Navigator.of(context).pop('camera'),
           ),
           TextButton.icon(
             icon: const Icon(Icons.photo_library),
-            label: const Text('Galería'),
+            label: Text(l10n.gallery),
             onPressed: () => Navigator.of(context).pop('gallery'),
           ),
           TextButton.icon(
             icon: const Icon(Icons.folder_open),
-            label: const Text('Explorador'),
+            label: Text(l10n.explorer),
             onPressed: () => Navigator.of(context).pop('files'),
           ),
           TextButton(
-            child: const Text('Cancelar'),
+            child: Text(l10n.cancel),
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -701,142 +757,92 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Formulario de Trabajo')),
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
+    appBar: AppBar(title: Text(l10n.formJobTitle)),
     body: SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         children: [
           TextField(
             controller: _tituloController,
-            decoration: const InputDecoration(labelText: 'Título del trabajo'),
+            decoration: InputDecoration(labelText: l10n.jobTitle),
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _descripcionController,
-            decoration: const InputDecoration(labelText: 'Descripción'),
+            decoration: InputDecoration(labelText: l10n.description),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
           TextField(
             controller: _montoController,
-            decoration: const InputDecoration(labelText: 'Monto'),
+            decoration: InputDecoration(labelText: l10n.amount),
             keyboardType: TextInputType.number,
           ),
           const SizedBox(height: 16),
 
           // Campo de búsqueda para categorías
+          // Selector de Categoría (Estilo Filtro de Mapa)
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextField(
-                controller: _searchCategoryController,
-                decoration: const InputDecoration(
-                  labelText: 'Categoría',
-                  hintText: 'Buscar categoría...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) {
-                  _searchCategories(value);
-                },
+              Text(
+                l10n.categorie,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-
-              // Resultados de búsqueda
-              if (_isSearchingCategories)
-                Container(
-                  height: 60,
-                  padding: const EdgeInsets.all(16),
+              
+              InkWell(
+                onTap: _showCategoryPicker,
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade400),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: const Center(child: CircularProgressIndicator()),
-                )
-              else if (_searchResults.isNotEmpty)
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: _searchResults.length,
-                    itemBuilder: (context, index) {
-                      final category = _searchResults[index];
-                      return ListTile(
-                        title: Text(category['name']),
-                        onTap: () => _selectCategory(category),
-                      );
-                    },
-                  ),
-                )
-              else if (_searchCategoryController.text.length >= 2 && _categoriaSeleccionada == null)
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: const Text(
-                      'No se encontraron categorías. Intenta con otra búsqueda.',
-                      style: TextStyle(color: Colors.grey),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-
-              // Mostrar categoría seleccionada
-              if (_categoriaSeleccionada != null)
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.shade200),
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(Icons.check_circle, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Categoría seleccionada: $_categoriaSeleccionada',
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.w500,
+                      Row(
+                        children: [
+                          Icon(
+                            _categoriaSeleccionada != null 
+                                ? _getCategoryIcon(_categoriaSeleccionada!) 
+                                : Icons.category_outlined,
+                            color: _categoriaSeleccionada != null ? Colors.blue : Colors.grey,
                           ),
-                        ),
+                          const SizedBox(width: 12),
+                          Text(
+                            _categoriaSeleccionada ?? l10n.searchPickCategorie,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: _categoriaSeleccionada != null 
+                                  ? Colors.black87 
+                                  : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          setState(() {
-                            _categoriaSeleccionada = null;
-                            _categoriaSeleccionadaId = null;
-                            _searchCategoryController.clear();
-                          });
-                        },
-                      ),
+                      const Icon(Icons.arrow_drop_down, color: Colors.grey),
                     ],
                   ),
                 ),
+              ),
             ],
           ),
 
           const SizedBox(height: 20),
 
-          // ✅ Sección de imagen
+          // Sección de imagen
           _buildImageSection(),
 
           const SizedBox(height: 20),
 
-          // ✅ Sección del mapa
+          // Sección del mapa
           _buildMapSection(),
 
           const SizedBox(height: 20),
@@ -848,35 +854,38 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               onPressed: () async {
                 // Validaciones
                 if (_tituloController.text.trim().isEmpty) {
-                  _showErrorMessage('Por favor ingresa un título');
+                  _showErrorMessage(l10n.plsTitle);
                   return;
                 }
 
                 if (_descripcionController.text.trim().isEmpty) {
-                  _showErrorMessage('Por favor ingresa una descripción');
+                  _showErrorMessage(l10n.plsDescription);
                   return;
                 }
 
                 if (_montoController.text.trim().isEmpty) {
-                  _showErrorMessage('Por favor ingresa un monto');
+                  _showErrorMessage(l10n.plsAmount);
                   return;
                 }
 
                 if (_categoriaSeleccionadaId == null) {
-                  _showErrorMessage('Por favor selecciona una categoría');
+                  _showErrorMessage(l10n.plsCategory);
                   return;
                 }
 
                 if (_selectedPosition == null) {
-                  _showErrorMessage('Por favor selecciona una ubicación en el mapa');
+                  _showErrorMessage(l10n.plsLocation);
                   return;
                 }
 
                 // Mostrar indicador de carga
+                // ignore: unawaited_futures
                 showDialog(
                   context: context,
                   barrierDismissible: false,
-                  builder: (BuildContext context) => const Center(
+                  builder: (BuildContext context) {
+                    final l10n = AppLocalizations.of(context)!; 
+                    return Center(
                     child: Card(
                       child: Padding(
                         padding: EdgeInsets.all(20),
@@ -885,12 +894,13 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                           children: [
                             CircularProgressIndicator(),
                             SizedBox(height: 16),
-                            Text('Publicando trabajo...'),
+                            Text(l10n.publishingJob),
                           ],
                         ),
                       ),
                     ),
-                  ),
+                  );
+                  },
                 );
 
                 try {
@@ -912,8 +922,8 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                 }
               },
               icon: const Icon(Icons.publish),
-              label: const Text(
-                'Publicar Trabajo',
+              label: Text(
+                l10n.publishJob,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -929,13 +939,16 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       ),
     ),
   );
+  }
 
-  // ✅ Widget para la sección de imagen
-  Widget _buildImageSection() => Column(
+  // Widget para la sección de imagen
+  Widget _buildImageSection() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text(
-        'Imagen del trabajo',
+      Text(
+        l10n.imageTitle,
         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 10),
@@ -966,7 +979,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
             ElevatedButton.icon(
               onPressed: _pickImage,
               icon: const Icon(Icons.photo_camera),
-              label: const Text('Cambiar'),
+              label: Text(l10n.change),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -980,7 +993,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                 });
               },
               icon: const Icon(Icons.delete, color: Colors.red),
-              label: const Text('Remover', style: TextStyle(color: Colors.red)),
+              label: Text(l10n.remove, style: TextStyle(color: Colors.red)),
             ),
           ],
         ),
@@ -991,7 +1004,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
           child: TextButton.icon(
             onPressed: _pickImageSimple,
             icon: const Icon(Icons.phone_android),
-            label: const Text('¿Problemas? Usa modo básico'),
+            label: Text(l10n.basicMode),
             style: TextButton.styleFrom(
               foregroundColor: Colors.grey[600],
             ),
@@ -1017,7 +1030,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Agregar imagen del trabajo',
+                l10n.addImage,
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 14,
@@ -1025,7 +1038,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               ),
               const SizedBox(height: 4),
               Text(
-                '(Opcional)',
+                l10n.optional,
                 style: TextStyle(
                   color: Colors.grey.shade500,
                   fontSize: 12,
@@ -1043,7 +1056,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.add_a_photo),
-                label: const Text('Seleccionar Imagen'),
+                label: Text(l10n.pickImage),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -1054,7 +1067,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               TextButton.icon(
                 onPressed: _pickImageSimple,
                 icon: const Icon(Icons.phone_android),
-                label: const Text('¿Problemas? Usa modo básico'),
+                label: Text(l10n.basicMode),
                 style: TextButton.styleFrom(
                   foregroundColor: Colors.grey[600],
                 ),
@@ -1065,28 +1078,31 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       ],
     ],
   );
+  }
 
-  // ✅ Widget CORREGIDO para la sección del mapa
-  Widget _buildMapSection() => Column(
+  // Widget para la sección del mapa
+  Widget _buildMapSection() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Ubicación del trabajo',
+          Text(
+            l10n.ubiJob,
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           IconButton(
             onPressed: _openLocationPicker,
             icon: const Icon(Icons.open_in_full),
-            tooltip: 'Abrir selector de ubicación',
+            tooltip: l10n.openLocationSelector,
           ),
         ],
       ),
       const SizedBox(height: 8),
 
-      // ✅ CORREGIDO: Información de la ubicación actual con dirección
+      // Información de la ubicación actual con dirección
       Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
@@ -1102,8 +1118,8 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Ubicación seleccionada:',
+                  Text(
+                    l10n.locationSelected,
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 4),
@@ -1125,7 +1141,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
             ),
             TextButton(
               onPressed: _openLocationPicker,
-              child: const Text('Cambiar'),
+              child: Text(l10n.change),
             ),
           ],
         ),
@@ -1172,9 +1188,9 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                     // Mostrar un snackbar con instrucciones
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: const Text('Mantén presionado para cambiar ubicación o usa el botón "Cambiar" arriba'),
+                        content: Text(l10n.bannerChangeLocation),
                         action: SnackBarAction(
-                          label: 'Abrir mapa',
+                          label: l10n.openMap,
                           onPressed: _openLocationPicker,
                         ),
                         duration: const Duration(seconds: 3),
@@ -1182,7 +1198,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                     );
                   },
                   onLongPress: (tapPosition, point) async {
-                    // ✅ CORREGIDO: Cambiar ubicación con long press y actualizar dirección
+                    // Cambiar ubicación con long press y actualizar dirección
                     setState(() {
                       _selectedPosition = point;
                     });
@@ -1191,8 +1207,8 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                     await _updateLocationAddress(point);
 
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('📍 Ubicación actualizada'),
+                      SnackBar(
+                        content: Text(l10n.updatedUbi),
                         duration: Duration(seconds: 2),
                       ),
                     );
@@ -1203,7 +1219,11 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                    additionalOptions: const {
+                      'accessToken': 'pk.eyJ1IjoiZGV2ZmxvcmVzIiwiYSI6ImNtOHFnNDN2aTBreHMyanE0ZHpnYjM2OXYifQ.e1I0xrOXkJOXl_R0Vx9gfg',
+                      'id': 'mapbox/streets-v12',
+                    },
                   ),
                   MarkerLayer(
                     markers: [
@@ -1232,20 +1252,21 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                     color: Colors.white.withOpacity(0.9),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    'Mantén presionado para cambiar ubicación',
+                  child: Text(
+                    l10n.bannerChangeLocation,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 12),
                   ),
                 ),
               ),
 
-              // ✅ CORREGIDO: Botón para centrar en ubicación actual
+              // Botón para centrar en ubicación actual
               Positioned(
                 bottom: 8,
                 right: 8,
                 child: FloatingActionButton(
                   mini: true,
+                  heroTag: null,
                   onPressed: () async {
                     if (_currentPosition != null) {
                       _mapController.move(_currentPosition!, 16);
@@ -1253,7 +1274,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                         _selectedPosition = _currentPosition;
                       });
 
-                      // ✅ NUEVO: Actualizar dirección
+                      // Actualizar dirección
                       await _updateLocationAddress(_currentPosition!);
                     }
                   },
@@ -1266,6 +1287,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
                 bottom: 8,
                 left: 8,
                 child: FloatingActionButton(
+                  heroTag: null,
                   mini: true,
                   onPressed: _openLocationPicker,
                   backgroundColor: Colors.blue,
@@ -1278,9 +1300,10 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       ),
     ],
   );
+  }
 }
 
-// ✅ NUEVA PANTALLA: Selector de ubicación de pantalla completa
+// Selector de ubicación de pantalla completa
 class LocationPickerScreen extends StatefulWidget {
   final LatLng initialPosition;
   final LatLng? currentUserPosition;
@@ -1356,20 +1379,20 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      Scaffold(
+  Widget build(BuildContext context) {
+      final l10n = AppLocalizations.of(context)!;
+      return Scaffold(
         appBar: AppBar(
-          title: const Text('Seleccionar ubicación'),
-          backgroundColor: Colors.blue,
+          title: Text(l10n.peakUbiaction),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context, _selectedPosition);
               },
-              child: const Text(
-                'Confirmar',
+              child: Text(
+                l10n.confirm,
                 style: TextStyle(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+                    color: Colors.white, fontWeight: FontWeight.bold,),
               ),
             ),
           ],
@@ -1382,7 +1405,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: 'Buscar lugar...',
+                  hintText: l10n.searchPlace,
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
@@ -1444,7 +1467,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate: 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token={accessToken}',
+                        additionalOptions: const {
+                          'accessToken': 'pk.eyJ1IjoiZGV2ZmxvcmVzIiwiYSI6ImNtOHFnNDN2aTBreHMyanE0ZHpnYjM2OXYifQ.e1I0xrOXkJOXl_R0Vx9gfg',
+                          'id': 'mapbox/streets-v12',
+                        },
                       ),
                       MarkerLayer(
                         markers: [
@@ -1499,18 +1526,18 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            'Ubicación seleccionada:',
+                          Text(
+                            l10n.locationSelected,
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            'Lat: ${_selectedPosition.latitude.toStringAsFixed(
-                                6)}',
+                            '${l10n.lat} ${_selectedPosition.latitude.toStringAsFixed(
+                                6,)}',
                             style: const TextStyle(fontSize: 12),
                           ),
                           Text(
-                            'Lng: ${_selectedPosition.longitude.toStringAsFixed(
-                                6)}',
+                            '${l10n.lng} ${_selectedPosition.longitude.toStringAsFixed(
+                                6,)}',
                             style: const TextStyle(fontSize: 12),
                           ),
                         ],
@@ -1524,6 +1551,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                       bottom: 16,
                       right: 16,
                       child: FloatingActionButton(
+                        heroTag: null,
                         onPressed: () {
                           _moveToPosition(widget.currentUserPosition!);
                         },
@@ -1536,4 +1564,5 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           ],
         ),
       );
+  }
 }

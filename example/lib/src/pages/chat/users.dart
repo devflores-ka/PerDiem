@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../../widgets/user_tile.dart';
 import 'room.dart';
@@ -76,10 +78,12 @@ class _UsersPageState extends State<UsersPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
     appBar: AppBar(
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      title: const Text('Users'),
+      title: Text(l10n.users),
     ),
     body: Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -89,7 +93,7 @@ class _UsersPageState extends State<UsersPage> {
           child: TextField(
             decoration: InputDecoration(
               border: OutlineInputBorder(),
-              labelText: 'Search',
+              labelText: l10n.search,
             ),
             onChanged: (value) => _setFilters(value),
           ),
@@ -110,4 +114,5 @@ class _UsersPageState extends State<UsersPage> {
       ],
     ),
   );
+  }
 }

@@ -5,9 +5,11 @@ import '../../../main.dart';
 import '../../services/user_service.dart';
 import '../../widgets/user_profile.dart';
 import 'auth.dart';
+import 'legal_doc_screen.dart';
 import 'register_categories_skills_step.dart';
 import 'register_personal_data_step.dart';
 import 'register_profile_step.dart';
+import 'terms_screen.dart';
 
 
 class RegisterScreen extends StatefulWidget {
@@ -20,8 +22,9 @@ class RegisterScreen extends StatefulWidget {
 class _RegisterScreenState extends State<RegisterScreen> {
   // Controladores de flujo
   bool _showProfileForm = false;
-  bool _showPersonalDataForm = false; // Nuevo paso
+  bool _showPersonalDataForm = false;
   bool _showCategoriesSkillsForm = false;
+  bool _acceptedTerms = false;
 
   // Datos de usuario que se van recopilando
   final UserProfile _userProfile = UserProfile();
@@ -94,6 +97,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   // Función para registrar el usuario básico (primer paso)
   Future<void> _registerUser() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_acceptedTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Debes aceptar los Términos y Condiciones para continuar'),
+          backgroundColor: Colors.orange.shade800,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
@@ -363,8 +377,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Registro'),
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
+          foregroundColor: Colors.black,
         ),
         body: Container(
           padding: const EdgeInsets.all(20),
@@ -490,7 +503,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 _obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
                               ),
                               onPressed: () {
-                                if (mounted) { // ✅ Verificar que esté montado
+                                if (mounted) { // Verificar que esté montado
                                   setState(() {
                                     _obscureConfirmPassword = !_obscureConfirmPassword;
                                   });
@@ -510,6 +523,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 30),
+                        // CHECKBOX DE TÉRMINOS Y CONDICIONES
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start, // Alinear arriba si el texto es largo
+                          children: [
+                            SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: Checkbox(
+                                value: _acceptedTerms,
+                                activeColor: Colors.blue,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                onChanged: (bool? value) {
+                                  setState(() {
+                                    _acceptedTerms = value ?? false;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  // Navegar a la pantalla de términos
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const LegalDocScreen(docType: 'terms'),
+                                    ),
+                                  );
+                                },
+                                child: RichText(
+                                  text: const TextSpan(
+                                    text: 'He leído y acepto los ',
+                                    style: TextStyle(color: Colors.black87, fontSize: 14),
+                                    children: [
+                                      TextSpan(
+                                        text: 'Términos y Condiciones de Uso',
+                                        style: TextStyle(
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: ' y la ',
+                                        style: TextStyle(color: Colors.black87),
+                                      ),
+                                      TextSpan(
+                                        text: 'Política de Privacidad',
+                                        style: TextStyle(
+                                          color: Colors.blue,
+                                          fontWeight: FontWeight.bold,
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                        // Nota: Aquí podrías añadir otro recognizer para abrir la política por separado si quisieras
+                                      ),
+                                      TextSpan(text: '.'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
                         const SizedBox(height: 30),
                         // Botón de registro
                         SizedBox(

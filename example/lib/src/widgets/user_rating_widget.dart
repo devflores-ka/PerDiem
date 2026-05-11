@@ -1,6 +1,8 @@
-// Archivo: lib/widgets/user_rating_widget.dart
+// lib/widgets/user_rating_widget.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../services/review_service.dart';
 
@@ -21,7 +23,9 @@ class UserRatingWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => FutureBuilder<UserRating>(
+  Widget build(BuildContext context) { 
+    final l10n = AppLocalizations.of(context)!;
+    return FutureBuilder<UserRating>(
       future: ReviewService.getUserRatingOptimized(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -30,7 +34,7 @@ class UserRatingWidget extends StatelessWidget {
               Icon(Icons.star, color: Colors.grey[300], size: size),
               const SizedBox(width: 4),
               Text(
-                'Cargando...',
+                l10n.loading,
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: size * 0.8,
@@ -46,7 +50,7 @@ class UserRatingWidget extends StatelessWidget {
               Icon(Icons.error_outline, color: Colors.red[300], size: size),
               const SizedBox(width: 4),
               Text(
-                'Error',
+                l10n.error,
                 style: TextStyle(
                   color: Colors.red[600],
                   fontSize: size * 0.8,
@@ -63,7 +67,7 @@ class UserRatingWidget extends StatelessWidget {
               Icon(Icons.star_border, color: Colors.grey, size: size),
               const SizedBox(width: 4),
               Text(
-                'Sin reseñas',
+                l10n.withoutReview,
                 style: TextStyle(
                   color: Colors.grey[600],
                   fontSize: size * 0.8,
@@ -115,7 +119,7 @@ class UserRatingWidget extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Reseñas (${rating.totalReviews})',
+                      '${l10n.reviews} (${rating.totalReviews})',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -130,6 +134,7 @@ class UserRatingWidget extends StatelessWidget {
         );
       },
     );
+  }
 
   Widget _buildReviewItem(BuildContext context, Review review) {
     final dateFormat = DateFormat('dd/MM/yyyy');

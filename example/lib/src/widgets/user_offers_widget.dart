@@ -1,7 +1,9 @@
-// Crear nuevo archivo: lib/widgets/user_offers_widget.dart
+// lib/widgets/user_offers_widget.dart
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../services/offers_service.dart';
 import '../utils/ofertas/detalle_oferta.dart';
@@ -25,6 +27,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
   List<Map<String, double>> _userOfferCoordinates = [];
   List<String> _userOfferIds = [];
   List<String> _userOfferNames = [];
+  List<String> _userOfferUserIds = [];
   bool _isLoadingOffers = true;
 
   @override
@@ -48,6 +51,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
       final coordenadas = <Map<String, double>>[];
       final ids = <String>[];
       final names = <String>[];
+      final userIds = <String>[]; // <--- 2. LISTA TEMPORAL
 
       for (var oferta in userOffers) {
         final user = oferta['user'] ?? {};
@@ -60,8 +64,8 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
               : (oferta['amount'] ?? 0).toDouble(),
           nombreUsuario: '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}',
           avatarUrl: user['imageUrl'] ?? 'https://placehold.co/40',
-          calificacion: 4.9, // O calcula desde reviews
-          numResenas: '2.5k', // O calcula desde reviews
+          calificacion: 4.9, 
+          numResenas: '2.5k', 
           esFavorito: false,
           ),
         );
@@ -72,6 +76,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
         });
         ids.add(oferta['id'].toString());
         names.add(oferta['name']?.toString() ?? '');
+        userIds.add(user['id']?.toString() ?? ''); // <--- GUARDAMOS EL USER ID
       }
 
       if (mounted) {
@@ -80,6 +85,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
           _userOfferCoordinates = coordenadas;
           _userOfferIds = ids;
           _userOfferNames = names;
+          _userOfferUserIds = userIds; // <--- GUARDAMOS EN EL ESTADO
           _isLoadingOffers = false;
         });
 
@@ -95,11 +101,12 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoadingOffers) {
-      return const Column(
+      return Column(
         children: [
           SizedBox(height: 20),
-          Text('Mis Servicios', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(l10n.myServices, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           SizedBox(height: 20),
           Center(child: CircularProgressIndicator()),
           SizedBox(height: 20),
@@ -111,7 +118,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
       return Column(
         children: [
           const SizedBox(height: 20),
-          const Text('Mis Servicios', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(l10n.myServices, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Container(
             width: double.infinity,
@@ -121,9 +128,9 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300),
             ),
-            child: const Center(
+            child: Center(
               child: Text(
-                'No hay servicios publicados',
+                l10n.noServiceOnAir,
                 style: TextStyle(color: Colors.grey),
               ),
             ),
@@ -137,13 +144,13 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 20),
-        const Text('Mis Servicios', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(l10n.myServices, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 15),
 
         // Banner inicial de sponsor
         _buildSponsorBanner(),
 
-        // Lista de ofertas con el mismo patrón que my_app.dart
+        // Lista de ofertas
         ...List.generate(
           (_userOffers.length / 2).ceil(),
               (rowIndex) {
@@ -204,6 +211,7 @@ class _UserOffersWidgetState extends State<UserOffersWidget> {
               longitud: _userOfferCoordinates[index]['longitud']!,
               offerId: _userOfferIds[index],
               offerName: _userOfferNames[index],
+              userId: _userOfferUserIds[index], // <--- 3. AQUÍ PASAMOS EL ID CORRECTO
               mostrarCalificacion: true,
             ),
           ),

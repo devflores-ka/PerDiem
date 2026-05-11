@@ -1,4 +1,4 @@
-// Archivo: lib/widgets/rating_display.dart
+// lib/widgets/rating_display.dart
 import 'package:flutter/material.dart';
 
 class RatingDisplay extends StatelessWidget {

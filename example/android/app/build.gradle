@@ -2,8 +2,8 @@ plugins {
     id "com.android.application"
     // START: FlutterFire Configuration
     id 'com.google.gms.google-services'
-    // END: FlutterFire Configuration version "8.3.0"
-    id "org.jetbrains.kotlin.android" version "1.8.10"
+    // END: FlutterFire Configuration version "8.9.1"
+    id "org.jetbrains.kotlin.android"
     id "dev.flutter.flutter-gradle-plugin"
 }
 
@@ -20,13 +20,13 @@ def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '
 
 android {
     namespace "com.perdiem.app"
-    compileSdk = 35
-    ndkVersion = "25.1.8937393"
+    compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId "com.perdiem.app"
-        minSdkVersion 21
-        targetSdkVersion 35
+        minSdkVersion flutter.minSdkVersion
+        targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
     }
@@ -51,6 +51,7 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -61,4 +62,8 @@ flutter {
 
 dependencies {
     implementation 'com.google.android.gms:play-services-maps:18.1.0'
+}
+
+configurations.all {
+    exclude group: 'com.google.firebase', module: 'firebase-iid'
 }

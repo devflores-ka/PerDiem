@@ -2,18 +2,22 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart'; // Add this import
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 import '../../managers/location_manager.dart';
+import '../../pages/search/search_screen.dart';
 import '../../services/offers_service.dart';
 import '../../utils/ofertas/detalle_oferta.dart';
 import '../../utils/tarjetas.dart';
 import '../../widgets/rating_display.dart';
 import '../auth/auth.dart';
-import 'formulario_trabajo.dart'; // Pantalla para publicar servicio
+import '../verificacion/verificacion_screen.dart';
+import 'formulario_trabajo.dart';
 
 // Formato de moneda
 final numberFormat = NumberFormat.currency(
@@ -37,6 +41,9 @@ class _TrabajoPageState extends State<TrabajoPage> {
   bool _cargando = true;
   List<String> _ids = [];
   List<String> _names = [];
+  List<String> _userIds = [];
+
+  String _userRole = 'user';
 
   // User location variables
   double _userLatitude = 0.0;
@@ -46,22 +53,24 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   late LocationManager _locationManager;
 
-  // ✅ Agregar variable para el listener
+  // Variable para el listener
   StreamSubscription<AuthState>? _authSubscription;
+
+  // VARIABLES PARA VISUALIZAR FILTROS
+  String? _activeQuery;
+  String? _activeCategory;
+  String? _activeOficio;
 
   @override
   void initState() {
     super.initState();
 
-    // ✅ AGREGAR: Inicializar LocationManager
     _locationManager = LocationManager();
 
-    // ✅ AGREGAR: Configurar listener para cambios de ubicación
     _setupLocationListener();
 
     _verificarSesion();
 
-    // ✅ MODIFICAR: Usar ubicación del LocationManager en lugar de getCurrentLocation
     _initializeFromLocationManager();
   }
 
@@ -197,49 +206,92 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   /// Verifica si hay un usuario autenticado
   void _verificarSesion() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) { // ✅ Asignar la subscription
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) async { // ✅ Asignar la subscription
+      final session = data.session;
+      
       if (mounted) { // ✅ Verificar que el widget esté montado
         setState(() {
           _user = data.session?.user;
         });
       }
+
+      // 2. Si hay usuario, consultar su ROL en la base de datos pública
+      if (session?.user != null) {
+        try {
+          final doc = await supabase
+              .schema('chats')
+              .from('users')
+              .select('role')
+              .eq('id', session!.user.id)
+              .maybeSingle();
+
+          if (mounted && doc != null) {
+            setState(() {
+              _userRole = doc['role'] ?? 'user';
+            });
+            
+            // Debug para que veas qué rol detectó
+            if (kDebugMode) print('👤 Rol detectado: $_userRole');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error obteniendo rol: $e');
+          }
+        }
+      } else {
+        // Si no hay sesión, asumimos rol de usuario normal (o invitado)
+        if (mounted) setState(() => _userRole = 'user');
+      }
+
     });
   }
 
-  // ✅ MODIFICAR: Actualizar dispose para limpiar el listener
+  // Actualizar dispose para limpiar el listener
   @override
   void dispose() {
     _authSubscription?.cancel();
 
-    // ✅ AGREGAR: Limpiar listener del LocationManager
+    // Limpiar listener del LocationManager
     _locationManager.removeListener(_setupLocationListener);
 
     super.dispose();
   }
 
-  /// Obtiene las ofertas desde Supabase
-  Future<void> _cargarTarjetas() async {
-    if (mounted) { // ✅ Agregar verificación
-      setState(() => _cargando = true);
+  /// Obtiene las ofertas desde Supabase y actualiza el estado visual de los filtros
+  Future<void> _cargarTarjetas({
+    String? query,
+    String? category,
+    String? oficioName,
+  }) async {
+    if (mounted) {
+      setState(() {
+        _cargando = true;
+        // Guardamos los filtros actuales para mostrarlos en el banner
+        _activeQuery = query;
+        _activeCategory = category;
+        _activeOficio = oficioName;
+      });
     }
 
     try {
       final offersService = OffersService();
-      final posicionUsuario = LatLng(
-        _userLatitude, _userLongitude,); // Use the stored user location
+      final posicionUsuario = LatLng(_userLatitude, _userLongitude);
 
       final ofertas = await offersService.getNearbyOffers(
         position: posicionUsuario,
-        //category: categoriaSeleccionada, // Opcional
+        query: query,
+        category: category,
+        oficioName: oficioName,
+        radius: 20.0,
       );
 
       final tarjetas = <TarjetaServicio>[];
       final coordenadas = <Map<String, double>>[];
       final ids = <String>[];
       final names = <String>[];
+      final userIds = <String>[];
 
       for (var oferta in ofertas) {
-        // La información de usuario ya viene incluida en el resultado
         final user = oferta['user'] ?? {};
 
         tarjetas.add(TarjetaServicio(
@@ -251,19 +303,17 @@ class _TrabajoPageState extends State<TrabajoPage> {
           nombreUsuario: '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}',
           avatarUrl: user['imageUrl'] ?? 'https://placehold.co/40',
           calificacion: 4.9,
-          // O calcúlalo si tienes este dato
           numResenas: '2.5k',
-          // O calcúlalo si tienes este dato
           esFavorito: false,
-        ),
-        );
+        ),);
 
         coordenadas.add({
-          'latitud': oferta['latitud'] ?? 0.0,
-          'longitud': oferta['longitud'] ?? 0.0,
+          'latitud': (oferta['latitud'] ?? 0.0).toDouble(),
+          'longitud': (oferta['longitud'] ?? 0.0).toDouble(),
         });
         ids.add(oferta['id'].toString());
         names.add(oferta['name']?.toString() ?? '');
+        userIds.add(user['id']?.toString() ?? '');
       }
 
       if (mounted) {
@@ -272,37 +322,132 @@ class _TrabajoPageState extends State<TrabajoPage> {
           _coordenadas = coordenadas;
           _ids = ids;
           _names = names;
+          _userIds = userIds;
           _cargando = false;
         });
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error al cargar tarjetas: $e');
-      }
-      if (mounted) {
-        setState(() {
-          _cargando = false;
-        });
-      }
+      if (kDebugMode) print('Error al cargar tarjetas: $e');
+      if (mounted) setState(() => _cargando = false);
     }
   }
 
   /// Redirige al formulario o autenticación
   void _manejarBotonFlotante() {
+    _verificarIdentidadYNavegar();
+  }
+
+  // Función auxiliar para verificar si el usuario puede operar
+  Future<void> _verificarIdentidadYNavegar() async {
+    // 1. Si no está logueado, mandar a Login (Lógica actual)
     if (_user == null) {
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const AuthScreen()),
       );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => FormularioTrabajo()),
-      ).then((_) => _cargarTarjetas());
+      return;
+    }
+
+    // Mostrar carga rápida
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 2. Consultar el estado real en la base de datos
+      final data = await supabase
+          .schema('chats')
+          .from('users')
+          .select('verification_status')
+          .eq('id', _user!.id)
+          .single();
+
+      // Cerrar loading
+      if (mounted) Navigator.pop(context);
+
+      final status = data['verification_status'] as String? ?? 'none';
+
+      // 3. Evaluar el estado
+      if (status == 'verified') {
+        // ✅ APROBADO: Dejar pasar al formulario
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FormularioTrabajo()),
+          ).then((_) => _cargarTarjetas());
+        }
+      } else {
+        // ⛔ BLOQUEADO: Mostrar alerta según el estado
+        _mostrarAlertaVerificacion(status);
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context); // Cerrar loading si falla
+      if (kDebugMode) print('Error verificando usuario: $e');
+      // En caso de error de red, podrías decidir dejar pasar o bloquear. 
+      // Por seguridad, mejor mostrar error.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error verificando cuenta: $e')),
+      );
     }
   }
 
-  // ✅ OPCIONAL: Método para forzar actualización de ubicación
+  // Popup bonito para explicar por qué no puede pasar
+  void _mostrarAlertaVerificacion(String status) {
+    var titulo = 'Verificación Requerida';
+    var mensaje = 'Para seguridad de la comunidad, necesitamos validar tu identidad antes de publicar trabajos.';
+    var btnTexto = 'Verificar Ahora';
+    var icono = Icons.gpp_maybe;
+    Color color = Colors.orange;
+
+    if (status == 'pending') {
+      titulo = 'Verificación en Proceso';
+      mensaje = 'Tus documentos están siendo revisados por nuestro equipo. Te avisaremos pronto.';
+      btnTexto = 'Entendido';
+      icono = Icons.hourglass_top;
+      color = Colors.blue;
+    } else if (status == 'rejected') {
+      titulo = 'Solicitud Rechazada';
+      mensaje = 'Hubo un problema con tus documentos. Por favor, intenta subirlos nuevamente.';
+      btnTexto = 'Intentar de nuevo';
+      icono = Icons.cancel;
+      color = Colors.red;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(children: [Icon(icono, color: color), const SizedBox(width: 10), Expanded(child: Text(titulo, style: const TextStyle(fontSize: 18)))]),
+        content: Text(mensaje),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (status != 'pending') {
+                // ✅ AQUI CONECTAMOS LA PANTALLA
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VerificationScreen()),
+                ).then((_) {
+                  // Cuando vuelva, podríamos recargar el estado por si ya lo envió
+                  // _verificarIdentidadYNavegar(); // Opcional
+                });
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white),
+            child: Text(btnTexto),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Método para forzar actualización de ubicación
   Future<void> _refreshLocation() async {
     setState(() => _cargando = true);
 
@@ -338,7 +483,9 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   // my_app.dart - Sección del build method rediseñada
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
     backgroundColor: Colors.white,
     appBar: AppBar(
       title: const Text(
@@ -346,13 +493,42 @@ class _TrabajoPageState extends State<TrabajoPage> {
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 24,
-          color: Colors.white,
+          
         ),
       ),
       centerTitle: false, // Cambié esto de true a false
-      backgroundColor: Colors.blue,
       elevation: 2,
-      shadowColor: Colors.blue.withOpacity(0.3),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search, color: Colors.black, size: 28),
+          tooltip: 'Buscar servicio',
+          onPressed: () async {
+            // 1. Navegar a la pantalla de búsqueda y esperar el resultado
+            final result = await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SearchScreen()),
+            );
+
+            // 2. Si el usuario buscó algo (no volvió con atrás sin hacer nada)
+            if (result != null && mounted) {
+              final query = result['query'] as String?;
+              final categoryMap = result['category'] as Map<String, dynamic>?;
+              final oficioMap = result['oficio'] as Map<String, dynamic>?;
+              
+              if (kDebugMode) {
+                print('🔎 Filtrando por: Texto="$query", Cat="${categoryMap?['name']}", Oficio="${oficioMap?['name']}"');
+              }
+
+              // 3. Recargar las tarjetas con los filtros
+              _cargarTarjetas(
+                query: query,
+                category: categoryMap?['name'], // Pasamos el nombre de la categoría
+                oficioName: oficioMap?['name'], // Pasamos el nombre del oficio
+              );
+            }
+          },
+        ),
+      ],
     ),
     body: RefreshIndicator(
       onRefresh: _refreshLocation,
@@ -374,16 +550,15 @@ class _TrabajoPageState extends State<TrabajoPage> {
             ],
           ),
         )
-            : _tarjetas.isEmpty
-            ? const Center(child: Text('No hay ofertas disponibles'))
             : CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(), // Permite refresh aun vacío
           slivers: [
             // Header con subtítulo
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
                 padding: EdgeInsets.fromLTRB(10, 15, 10, 10),
                 child: Text(
-                  'Servicios Disponibles',
+                  l10n.availableServices,
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -393,39 +568,72 @@ class _TrabajoPageState extends State<TrabajoPage> {
               ),
             ),
 
-            // Banner de sponsor inicial
+            // BANNER DE FILTROS (Siempre visible si hay filtros activos)
+            _buildActiveFiltersBanner(),
+
+            // Banner de sponsor inicial (SOLO UNO, borré el duplicado)
             SliverToBoxAdapter(
               child: _buildSponsorBanner(),
             ),
 
-            // Grid de tarjetas intercalado con banners de sponsor
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                  // Cada 2 filas (4 tarjetas), insertar un banner de sponsor
-                  if (index > 0 && index % 4 == 0) {
-                    return Column(
-                      children: [
-                        _buildSponsorBanner(),
-                        _buildTarjetaRow(index),
-                      ],
-                    );
-                  }
+            // Lógica de lista o mensaje de vacío
+            if (_tarjetas.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No hay ofertas con estos filtros',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      // Botón extra para limpiar filtros si está vacío
+                      if (_activeCategory != null || _activeQuery != null)
+                        TextButton.icon(
+                          onPressed: () {
+                             _cargarTarjetas(); // Recargar sin filtros
+                             ScaffoldMessenger.of(context).showSnackBar(
+                               const SnackBar(content: Text('Filtros borrados')),
+                             );
+                          },
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Ver todas las ofertas'),
+                        ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              // Grid de tarjetas intercalado con banners de sponsor
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                    // Cada 4 tarjetas, insertar un banner de sponsor
+                    if (index > 0 && index % 4 == 0) {
+                      return Column(
+                        children: [
+                          _buildSponsorBanner(),
+                          _buildTarjetaRow(index),
+                        ],
+                      );
+                    }
 
-                  if (index >= _tarjetas.length) {
-                    return null;
-                  }
+                    if (index >= _tarjetas.length) return null;
 
-                  // Cada 2 tarjetas, crear una fila
-                  if (index % 2 == 0) {
-                    return _buildTarjetaRow(index);
-                  }
+                    // Cada 2 tarjetas, crear una fila
+                    if (index % 2 == 0) {
+                      return _buildTarjetaRow(index);
+                    }
 
-                  return const SizedBox.shrink();
-                },
-                childCount: _tarjetas.length,
+                    return const SizedBox.shrink();
+                  },
+                  childCount: _tarjetas.length,
+                ),
               ),
-            ),
 
             // Espacio final para el FAB
             const SliverToBoxAdapter(
@@ -435,14 +643,139 @@ class _TrabajoPageState extends State<TrabajoPage> {
         ),
       ),
     ),
-    floatingActionButton: FloatingActionButton(
-      onPressed: _manejarBotonFlotante,
-      tooltip: 'Publicar servicio',
-      backgroundColor: Colors.blue,
-      child: const Icon(Icons.add, color: Colors.white),
-    ),
+    floatingActionButton: _userRole == 'worker' 
+      ? FloatingActionButton(
+          heroTag: 'btn_flotante_trab',
+          onPressed: _manejarBotonFlotante,
+          tooltip: 'Publicar servicio',
+          backgroundColor: Colors.blue,
+          child: const Icon(Icons.add, color: Colors.white),
+        )
+      : null, // null oculta el botón
     floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
   );
+}
+
+// WIDGET Banner de Filtros Activos
+  Widget _buildActiveFiltersBanner() {
+    // Solo mostrar si hay algún filtro activo
+    final hasFilter = (_activeQuery != null && _activeQuery!.isNotEmpty) ||
+                      (_activeCategory != null && _activeCategory!.isNotEmpty) ||
+                      (_activeOficio != null && _activeOficio!.isNotEmpty);
+
+    if (!hasFilter) return const SliverToBoxAdapter(child: SizedBox.shrink());
+
+    return SliverToBoxAdapter(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(10, 5, 10, 15),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.blue.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.blue.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Icono de filtro
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.blue.shade100),
+              ),
+              child: const Icon(Icons.filter_alt, color: Colors.blue, size: 20),
+            ),
+            const SizedBox(width: 12),
+            
+            // Texto descriptivo de los filtros
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Resultados filtrados por:',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (_activeCategory != null)
+                        _buildFilterChip(Icons.category, _activeCategory!, Colors.orange),
+                      if (_activeOficio != null)
+                        _buildFilterChip(Icons.work, _activeOficio!, Colors.purple),
+                      if (_activeQuery != null && _activeQuery!.isNotEmpty)
+                        _buildFilterChip(Icons.search, '"$_activeQuery"', Colors.blue),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Botón de BORRAR FILTROS
+            IconButton(
+              onPressed: () {
+                // ✅ Volver a cargar sin parámetros (limpia todo)
+                _cargarTarjetas(); 
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Filtros borrados. Mostrando todo lo cercano.'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.close, color: Colors.red),
+              tooltip: 'Borrar filtros',
+              style: IconButton.styleFrom(
+                backgroundColor: Colors.white,
+                padding: const EdgeInsets.all(8),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper pequeño para los chips de colores
+  Widget _buildFilterChip(IconData icon, String label, MaterialColor color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color.shade700),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color.shade800,
+            ),
+          ),
+        ],
+      ),
+    );
 
 // Método para construir una fila con 2 tarjetas
   Widget _buildTarjetaRow(int startIndex) => Padding(
@@ -485,6 +818,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
               longitud: _coordenadas[index]['longitud']!,
               offerId: _ids[index],
               offerName: _names[index],
+              userId: _userIds[index],
               mostrarCalificacion: true,
             ),
           ),
@@ -612,7 +946,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
       ),
     );
 
-// Método para construir banner publicitario (mantienes el original si lo necesitas)
+// Método para construir banner publicitario
   Widget _buildAdBanner() => Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       height: 80,

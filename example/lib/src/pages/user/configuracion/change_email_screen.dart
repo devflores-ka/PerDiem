@@ -33,8 +33,7 @@ class _ChangeEmailScreenState extends State<ChangeEmailScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Cambiar email'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      foregroundColor: Colors.black,
       elevation: 2,
     ),
     body: SingleChildScrollView(

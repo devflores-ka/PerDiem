@@ -6,6 +6,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 import '../../managers/location_manager.dart';
 import '../../managers/workers_filter_manager.dart';
 import '../../services/workers_service.dart';
@@ -36,12 +38,12 @@ class _MapScreenState extends State<MapScreen> {
     _locationManager = LocationManager();
     _filterManager = WorkersFilterManager();
 
-    // ✅ NUEVO: Escuchar cambios en la ubicación del usuario
+    // Escuchar cambios en la ubicación del usuario
     _setupLocationListener();
     _initializeLocation();
   }
 
-  // ✅ NUEVO: Configurar listener para cambios de ubicación
+  // Configurar listener para cambios de ubicación
   void _setupLocationListener() {
     _locationManager.addListener(() {
       if (_locationManager.currentPosition != null) {
@@ -49,7 +51,7 @@ class _MapScreenState extends State<MapScreen> {
           print('🗺️ Ubicación del usuario cambió, actualizando mapa y trabajadores');
         }
 
-        // ✅ CORRECCIÓN: Solo mover el mapa si está listo
+        //  CORRECCIÓN: Solo mover el mapa si está listo
         try {
           _mapController.move(_locationManager.currentPosition!, 15);
                 } catch (e) {
@@ -64,7 +66,23 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // ✅ MEJORADO: Método para cambiar ubicación con mejor UX
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    final l10n = AppLocalizations.of(context)!;
+    final currentLocale = Localizations.localeOf(context).languageCode;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _filterManager.updateLocalization(l10n);
+        
+        _filterManager.fetchCategories(currentLocale); 
+      }
+    });
+  }
+
+  //  MEJORADO: Método para cambiar ubicación con mejor UX
   void _showLocationSelectionDialog(BuildContext context) async {
     final locationManager = Provider.of<LocationManager>(context, listen: false);
 
@@ -87,7 +105,7 @@ class _MapScreenState extends State<MapScreen> {
         print('🗺️ Nueva ubicación seleccionada: $result');
       }
 
-      // ✅ MEJORADO: Actualizar ubicación y mostrar loading
+      //  MEJORADO: Actualizar ubicación y mostrar loading
       _filterManager.setLoading(true);
 
       try {
@@ -101,7 +119,7 @@ class _MapScreenState extends State<MapScreen> {
         await _refreshNearbyWorkers();
 
         if (kDebugMode) {
-          print('✅ Ubicación actualizada exitosamente');
+          print(' Ubicación actualizada exitosamente');
         }
 
         // Mostrar mensaje de confirmación
@@ -133,9 +151,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // Archivo: lib/screens/map_screen.dart - MÉTODO CORREGIDO PARA _refreshNearbyWorkers
-
-  // ✅ MEJORADO: Refresh con mejor manejo de errores y debug completo
+  // Refresh con mejor manejo de errores y debug completo
   Future<void> _refreshNearbyWorkers() async {
     final currentPosition = _locationManager.currentPosition;
     if (currentPosition == null) {
@@ -145,78 +161,58 @@ class _MapScreenState extends State<MapScreen> {
       return;
     }
 
-    // ✅ OBTENER USUARIO ACTUAL PARA DEBUGGING
+    // OBTENER USUARIO ACTUAL PARA DEBUGGING
     final currentUser = Supabase.instance.client.auth.currentUser;
-
-    if (kDebugMode) {
-      print('🔄 === REFRESH NEARBY WORKERS DEBUG ===');
-      print('👤 Usuario actual: ${currentUser?.id}');
-      print('📍 Buscando desde: ${currentPosition.latitude}, ${currentPosition.longitude}');
-      print('📂 Filtro categoría: ${_filterManager.selectedCategory}');
-      print('🔧 Filtro skill: ${_filterManager.selectedSkill}');
-    }
 
     _filterManager.setLoading(true);
 
+    //  1. Lógica Correcta: Usamos la primera opción de la lista actual del manager
+    // Esto funciona en español ("Categorías"), inglés ("Categories"), etc.
+    final defaultCategory = _filterManager.categories.isNotEmpty ? _filterManager.categories.first : 'Categorías';
+    final defaultSkill = _filterManager.skills.isNotEmpty ? _filterManager.skills.first : 'Oficios';
+
+    //  2. Preparamos los filtros para enviar al servicio
+    // Si la selección es igual al texto por defecto, enviamos NULL (sin filtro)
+    final categoryFilterToUse = _filterManager.selectedCategory == defaultCategory
+        ? null
+        : _filterManager.selectedCategory;
+
+    final skillFilterToUse = _filterManager.selectedSkill == defaultSkill
+        ? null
+        : _filterManager.selectedSkill;
+
+    if (kDebugMode) {
+      print('🔄 === REFRESH NEARBY WORKERS DEBUG ===');
+      print('📂 Filtro categoría UI: ${_filterManager.selectedCategory}');
+      print('📤 Enviando a DB: $categoryFilterToUse'); // Debe ser null si no elegiste nada
+    }
+
     try {
-      final categoryFilter = _filterManager.selectedCategory == 'Todos'
-          ? null
-          : _filterManager.selectedCategory;
 
-      final skillFilter = _filterManager.selectedSkill == 'Todas'
-          ? null
-          : _filterManager.selectedSkill;
-
-      // ✅ AGREGAR DEBUG ESPECÍFICO ANTES DE LA LLAMADA
+      //  AGREGAR DEBUG ESPECÍFICO ANTES DE LA LLAMADA
       if (kDebugMode) {
         await _workersService.debugWorkerFiltering(currentPosition);
       }
 
+      // Pasamos las variables correctas
       final workers = await _workersService.getNearbyWorkers(
         currentPosition,
-        categoryFilter,
-        skillFilter,
+        categoryFilterToUse, 
+        skillFilterToUse,
       );
 
       if (mounted) {
-        // ✅ VERIFICACIÓN CRÍTICA: ¿Se están filtrando trabajadores aquí?
-        if (kDebugMode) {
-          print('🎯 === WORKERS RECIBIDOS EN MAP_SCREEN ===');
-          print('📊 Total workers: ${workers.length}');
-
-          for (var i = 0; i < workers.length; i++) {
-            final worker = workers[i];
-            final user = worker['user'] as Map<String, dynamic>;
-            final isCurrentUser = user['id'] == currentUser?.id;
-            print('  [$i] ${user['firstName']} ${user['lastName']} - ${worker['categories']} ${isCurrentUser ? '👤 (TU)' : ''}');
-          }
-
-          // Verificar si solo se muestra el usuario actual
-          final onlyCurrentUser = workers.every((w) => (w['user'] as Map)['id'] == currentUser?.id);
-          if (onlyCurrentUser && workers.isNotEmpty) {
-            print('❌ PROBLEMA DETECTADO: Solo se está mostrando el usuario actual!');
-          }
-        }
+        // ... tu código de debug existente ...
 
         _filterManager.setNearbyWorkers(workers);
 
         if (kDebugMode) {
-          print('✅ Trabajadores cercanos actualizados en FilterManager: ${workers.length}');
+          print('Trabajadores cercanos actualizados en FilterManager: ${workers.length}');
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error actualizando trabajadores: $e');
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error cargando trabajadores: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // ... manejo de errores ...
+      if (kDebugMode) print('❌ Error actualizando trabajadores: $e');
     } finally {
       if (mounted) {
         _filterManager.setLoading(false);
@@ -224,7 +220,7 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
 
-  // ✅ MÉTODO CORREGIDO: Construcción de marcadores con debug mejorado
+  // Construcción de marcadores con debug mejorado
   List<Marker> _buildWorkerMarkers(List<Map<String, dynamic>> workers) {
     final currentUser = Supabase.instance.client.auth.currentUser;
 
@@ -262,7 +258,7 @@ class _MapScreenState extends State<MapScreen> {
           print('🗺️ [$i] Creando marcador para ${user['firstName']} ${user['lastName']} en $lat, $lng ${isCurrentUser ? '👤 (TU)' : ''}');
         }
 
-        // ✅ IMPORTANTE: CREAR MARCADORES PARA TODOS LOS USUARIOS
+        //  IMPORTANTE: CREAR MARCADORES PARA TODOS LOS USUARIOS
         final marker = Marker(
           point: markerPosition,
           width: 120,
@@ -277,7 +273,7 @@ class _MapScreenState extends State<MapScreen> {
                   rating: user['rating'] != null ? user['rating'].toDouble() : 0.0,
                   ratingCount: user['rating_count'] ?? 0,
                 ),
-                // ✅ Indicador visual para el usuario actual (opcional)
+                //  Indicador visual para el usuario actual (opcional)
                 if (isCurrentUser)
                   Positioned(
                     top: 0,
@@ -312,10 +308,11 @@ class _MapScreenState extends State<MapScreen> {
       }
     }
 
-    // ✅ VERIFICACIÓN FINAL
+    //  VERIFICACIÓN FINAL
     if (kDebugMode) {
-      print('✅ Marcadores creados exitosamente: ${markers.length}');
+      print(' Marcadores creados exitosamente: ${markers.length}');
 
+      // ignore: prefer_expression_function_bodies
       final currentUserMarkers = markers.where((marker) {
         // Esta verificación es aproximada, pero nos da una idea
         return true; // Mostramos todos los marcadores
@@ -331,7 +328,7 @@ class _MapScreenState extends State<MapScreen> {
     return markers;
   }
 
-  // ✅ NUEVO: Método para sincronizar con cambios desde el perfil
+  //  NUEVO: Método para sincronizar con cambios desde el perfil
   Future<void> _initializeLocation() async {
     final success = await _locationManager.initializeLocation(
         _filterManager.determineSector, forceUpdate: true,
@@ -371,6 +368,7 @@ class _MapScreenState extends State<MapScreen> {
   // Muestra la hoja inferior con los oficios
   void _showSkillFilterSheet(BuildContext context) {
     final filterManager = Provider.of<WorkersFilterManager>(context, listen: false);
+    final l10n = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -384,8 +382,8 @@ class _MapScreenState extends State<MapScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Selecciona un oficio',
+            Text(
+              l10n.selectOneTrade,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -519,10 +517,28 @@ class _MapScreenState extends State<MapScreen> {
       ),
     );
 
-  Widget _buildSkillFilterButton(BuildContext context, WorkersFilterManager filterManager) => GestureDetector(
-      onTap: () {
-        _showSkillFilterSheet(context);
-      },
+  Widget _buildSkillFilterButton(BuildContext context, WorkersFilterManager filterManager) {
+    // 1. Verificar si hay una categoría específica seleccionada
+    // Asumimos que 'Todos' es el valor por defecto cuando no se ha seleccionado una específica
+    final bool isCategorySelected = filterManager.selectedCategory != filterManager.categories.first;
+    final l10n = AppLocalizations.of(context)!;
+
+    return GestureDetector(
+      // 2. Si no hay categoría seleccionada, el onTap es null (bloqueado)
+      // Si hay categoría, mostramos la hoja de filtros
+      onTap: isCategorySelected 
+          ? () {
+              _showSkillFilterSheet(context);
+            } 
+          : () {
+              // Opcional: Mostrar un mensaje pequeño indicando que deben seleccionar categoría
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(l10n.firstSelectOneCategorie),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Row(
@@ -530,39 +546,50 @@ class _MapScreenState extends State<MapScreen> {
           children: [
             Icon(
               filterManager.getSkillIcon(filterManager.selectedSkill),
-              color: Colors.blueAccent,
+              // 3. Cambiar color visualmente (Gris si está bloqueado, Azul si está activo)
+              color: isCategorySelected ? Colors.blueAccent : Colors.grey.shade400,
               size: 18,
             ),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
                 filterManager.selectedSkill,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
+                  // Texto gris si está bloqueado
+                  color: isCategorySelected ? Colors.black : Colors.grey.shade400,
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, color: Colors.grey, size: 16),
+            Icon(
+              Icons.keyboard_arrow_down, 
+              // Flecha gris claro si está bloqueado
+              color: isCategorySelected ? Colors.grey : Colors.grey.shade300, 
+              size: 16,
+            ),
           ],
         ),
       ),
     );
+  }
 
 // Botón para cambiar ubicación manualmente
-  Widget _buildLocationButton(BuildContext context) => GestureDetector(
+  Widget _buildLocationButton(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return GestureDetector(
       onTap: () {
         // Aquí implementaremos la funcionalidad para cambiar ubicación
         _showLocationSelectionDialog(context);
       },
       child: Row(
-        children: const [
+        children: [
           Icon(Icons.location_on, color: Colors.blueAccent),
           SizedBox(width: 5),
           Text(
-            'Ubicación',
+            l10n.locationSingle,
             style: TextStyle(
               fontWeight: FontWeight.w500,
             ),
@@ -570,10 +597,12 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
     );
+  }
 
 // Muestra la hoja inferior con las categorías
   void _showCategoryFilterSheet(BuildContext context) {
     final filterManager = Provider.of<WorkersFilterManager>(context, listen: false);
+    final l10n = AppLocalizations.of(context)!;
 
     showModalBottomSheet(
       context: context,
@@ -587,8 +616,8 @@ class _MapScreenState extends State<MapScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Selecciona una categoría',
+            Text(
+              l10n.selectOneCategorie,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -652,6 +681,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   @override
+  // ignore: prefer_expression_function_bodies
   Widget build(BuildContext context) {
     // Envolver en providers para proporcionar managers a los widgets hijos
     return MultiProvider(
@@ -660,24 +690,13 @@ class _MapScreenState extends State<MapScreen> {
         ChangeNotifierProvider.value(value: _filterManager),
       ],
       child: Scaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          title: const Text('Mapa'),
-          backgroundColor: Colors.blueAccent,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _refreshNearbyWorkers,
-              tooltip: 'Actualizar trabajadores cercanos',
-            ),
-          ],
-        ),
-        // Eliminamos el drawer que ya no se necesita
+        extendBodyBehindAppBar: true, // <--- ESTO HACE QUE EL MAPA PASE POR DEBAJO
         body: _buildBody(),
       ),
     );
   }
 
+  // ignore: prefer_expression_function_bodies
   Widget _buildBody() {
     // Consumir el estado de los managers
     return Consumer2<LocationManager, WorkersFilterManager>(
@@ -724,7 +743,9 @@ class _MapScreenState extends State<MapScreen> {
               top: 0,
               left: 0,
               right: 0,
-              child: _buildFilterStrip(context, filterManager),
+              child: SafeArea(
+                child: _buildFilterStrip(context, filterManager),
+              ),
             ),
           ],
         );
@@ -732,7 +753,9 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildMap(LocationManager locationManager, WorkersFilterManager filterManager) => Stack(
+  Widget _buildMap(LocationManager locationManager, WorkersFilterManager filterManager) { 
+    final l10n = AppLocalizations.of(context)!;
+    return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
@@ -765,12 +788,29 @@ class _MapScreenState extends State<MapScreen> {
         ),
         Positioned(
           right: 16,
-          bottom: 100,
-          child: FloatingActionButton(
-            onPressed: _centerMapOnUser,
-            backgroundColor: Colors.white,
-            mini: true,
-            child: const Icon(Icons.my_location, color: Colors.black),
+          bottom: 120,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 1. NUEVO: Botón de Recargar
+              FloatingActionButton(
+                heroTag: 'btn_refresh', // Necesario si hay 2 FABs en pantalla
+                onPressed: _refreshNearbyWorkers,
+                backgroundColor: Colors.white,
+                mini: true,
+                child: const Icon(Icons.refresh, color: Colors.black87),
+              ),
+              const SizedBox(height: 12), // Espacio entre botones
+              
+              // 2. Botón de Centrar (Existente)
+              FloatingActionButton(
+                heroTag: 'btn_center', // Necesario si hay 2 FABs en pantalla
+                onPressed: _centerMapOnUser,
+                backgroundColor: Colors.white,
+                mini: true,
+                child: const Icon(Icons.my_location, color: Colors.blueAccent),
+              ),
+            ],
           ),
         ),
         // Indicador de depuración
@@ -800,8 +840,8 @@ class _MapScreenState extends State<MapScreen> {
                 color: Colors.blueAccent.withOpacity(0.8),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
-                'Tu ubicación',
+              child: Text(
+                l10n.yourUbi,
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
@@ -809,4 +849,5 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ],
     );
+  }
 }

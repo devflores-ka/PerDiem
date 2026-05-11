@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../widgets/user_profile.dart';
@@ -112,13 +112,13 @@ class UserService {
     }
   }
 
-  // Actualizar datos del perfil - VERSIÓN SIMPLIFICADA
+  // Actualizar datos del perfil
   Future<void> updateUserProfile(UserProfile profile) async {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('No hay sesión activa');
 
     try {
-      // SOLO actualizar metadatos en auth - el trigger se encarga del resto
+      // 1. Actualizar metadatos en Auth (Mantenemos esto)
       await supabase.auth.updateUser(
         UserAttributes(
           data: {
@@ -131,7 +131,7 @@ class UserService {
         ),
       );
 
-      // Actualizar en SupabaseChatCore (esto actualiza chats.users)
+      // 2. Actualizar en SupabaseChatCore (Mantenemos esto para el chat)
       await SupabaseChatCore.instance.updateUser(
         types.User(
           id: user.id,
@@ -145,8 +145,16 @@ class UserService {
         ),
       );
 
+      // ✅ NUEVO: Forzar actualización de la columna 'role' en chats.users
+      // Esto asegura que el Panel de Admin vea el rol correctamente
+      await supabase.schema('chats').from('users').update({
+        'role': profile.role ?? 'user', // Si es null, ponemos 'user'
+        'firstName': profile.firstName, // Ya que estamos, aseguramos el nombre
+        'lastName': profile.lastName,
+      }).eq('id', user.id);
+
       if (kDebugMode) {
-        print('✅ Perfil actualizado exitosamente');
+        print('✅ Perfil y Rol actualizados exitosamente');
       }
 
     } catch (e) {

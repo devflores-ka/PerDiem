@@ -1,5 +1,9 @@
-// user_profile_widget.dart - Widget actualizado del perfil
+// user_profile_widget.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
+import '/l10n/generated/app_localizations.dart';
+
 import '../pages/user/personal/update_categories_screen.dart';
 import '../services/user_service.dart';
 
@@ -38,7 +42,9 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading categories and oficios: $e');
+      if (kDebugMode) {
+        print('Error loading categories and oficios: $e');
+      }
       setState(() {
         _isLoading = false;
       });
@@ -64,6 +70,7 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       children: [
         // Información básica del usuario
@@ -144,8 +151,8 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Mis especialidades',
+                  Text(
+                    l10n.mySpeciality,
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -154,7 +161,7 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
                   IconButton(
                     onPressed: _navigateToUpdateCategories,
                     icon: const Icon(Icons.edit),
-                    tooltip: 'Editar categorías y oficios',
+                    tooltip: l10n.editCatdnOf,
                   ),
                 ],
               ),
@@ -185,7 +192,7 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'No tienes categorías configuradas',
+                        l10n.noCatConf,
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey.shade600,
@@ -194,7 +201,7 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Agrega tus especialidades para que otros puedan encontrarte',
+                        l10n.addCats,
                         style: TextStyle(
                           fontSize: 14,
                           color: Colors.grey.shade500,
@@ -205,7 +212,7 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
                       ElevatedButton.icon(
                         onPressed: _navigateToUpdateCategories,
                         icon: const Icon(Icons.add),
-                        label: const Text('Agregar especialidades'),
+                        label: Text(l10n.addSpecs),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -279,13 +286,13 @@ class _UserProfileWidgetState extends State<UserProfileWidget> {
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
-                              )).toList(),
+                              ),).toList(),
                             ),
                           ] else
                             Padding(
                               padding: const EdgeInsets.only(top: 8),
                               child: Text(
-                                'Sin oficios especificados',
+                                l10n.noProff,
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade600,

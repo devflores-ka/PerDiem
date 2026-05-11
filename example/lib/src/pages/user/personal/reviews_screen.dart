@@ -51,12 +51,10 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Mis Reseñas'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        foregroundColor: Colors.black,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -88,7 +86,6 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
         ],
       ),
     );
-  }
 
   Widget _buildStatsHeader() {
     return Container(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 class TrabajosScreen extends StatefulWidget {
   const TrabajosScreen({super.key});
 
@@ -17,10 +19,17 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
   @override
   void initState() {
     super.initState();
-    _cargarTrabajos();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Aquí sí es seguro llamar a AppLocalizations o Providers
+    _cargarTrabajos(); 
   }
 
   Future<void> _cargarTrabajos() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() {
       _isLoading = true;
     });
@@ -99,18 +108,18 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
           todosLosTrabajos.add({
             ...trabajo,
             'tipo': 'cliente',
-            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'titulo': trabajo['description'] ?? l10n.serviceContracted,
             'proveedor_nombre': '${proveedorData['firstName'] ?? ''} ${proveedorData['lastName'] ?? ''}'.trim(),
-            'mostrar_como': 'Servicio de ${proveedorData['firstName'] ?? 'Proveedor'}',
+            'mostrar_como': '${l10n.serviceOf} ${proveedorData['firstName'] ?? 'Proveedor'}',
           });
         } catch (e) {
           debugPrint('Error obteniendo datos del proveedor: $e');
           todosLosTrabajos.add({
             ...trabajo,
             'tipo': 'cliente',
-            'titulo': trabajo['description'] ?? 'Servicio contratado',
+            'titulo': trabajo['description'] ?? l10n.serviceContracted,
             'proveedor_nombre': 'Proveedor',
-            'mostrar_como': 'Servicio contratado',
+            'mostrar_como': l10n.serviceContracted,
           });
         }
       }
@@ -141,11 +150,12 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+   final l10n = AppLocalizations.of(context)!;
+   return Scaffold(
     appBar: AppBar(
-      title: const Text('Mis Trabajos'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      title: Text(l10n.myWorksTitle),
+      foregroundColor: Colors.black,
       actions: [
         IconButton(
           icon: const Icon(Icons.refresh),
@@ -167,9 +177,12 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
       },
     ),
   );
+  }
 
-  Widget _buildEmptyState() => Center(
-    child: Column(
+  Widget _buildEmptyState(){
+    final l10n = AppLocalizations.of(context)!;
+    return Center(
+      child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(
@@ -179,7 +192,7 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          'No tienes trabajos completados',
+          l10n.noJobsCompleted,
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
@@ -189,7 +202,7 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Aquí aparecerán todos los servicios que has prestado o contratado una vez completados',
+          l10n.allServicesContracted,
           style: TextStyle(
             fontSize: 14,
             color: Colors.grey[500],
@@ -199,11 +212,16 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
       ],
     ),
   );
+  }
 
   Widget _buildTrabajoItem(Map<String, dynamic> trabajo) {
-    final dateFormat = DateFormat('d MMMM, yyyy', 'es_CL');
+    final currentLocale = Localizations.localeOf(context).languageCode;
+    
+    // Fecha automática: "February 14, 2024" (EN) o "14 de febrero de 2024" (ES)
+    final dateFormat = DateFormat.yMMMMd(currentLocale);
+    
     final moneyFormat = NumberFormat.currency(
-      locale: 'es_CL',
+      locale: currentLocale,
       symbol: '\$',
       decimalDigits: 0,
     );
@@ -217,6 +235,8 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
     final monto = trabajo['amount'] != null
         ? moneyFormat.format(trabajo['amount'])
         : '';
+
+    final l10n = AppLocalizations.of(context)!;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -249,7 +269,7 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        esProveedor ? 'Prestado' : 'Contratado',
+                        esProveedor ? 'Prestado' : l10n.contracted,
                         style: TextStyle(
                           color: esProveedor ? Colors.green.shade700 : Colors.blue.shade700,
                           fontWeight: FontWeight.bold,
@@ -310,7 +330,7 @@ class _TrabajosScreenState extends State<TrabajosScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        esProveedor ? 'Cliente:' : 'Proveedor:',
+                        esProveedor ? 'Cliente:' : '${l10n.suplier}:',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey[600],

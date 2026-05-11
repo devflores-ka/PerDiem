@@ -1,5 +1,7 @@
-// Archivo: lib/widgets/review_form_widget.dart
+// lib/widgets/review_form_widget.dart
 import 'package:flutter/material.dart';
+
+import '/l10n/generated/app_localizations.dart';
 import '../services/review_service.dart';
 
 class ReviewFormWidget extends StatefulWidget {
@@ -32,11 +34,12 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
   }
 
   Future<void> _submitReview() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_rating == 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor, selecciona una calificación'),
+          SnackBar(
+            content: Text(l10n.plsSelectCalf),
             backgroundColor: Colors.red,
           ),
         );
@@ -53,14 +56,14 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
         reviewedId: widget.reviewedUserId,
         rating: _rating,
         comment: _commentController.text,
-        proposalId: widget.proposalId, // Agregar proposalId para rastreo
+        proposalId: widget.proposalId,
       );
 
       if (mounted) {
         // Mostrar mensaje de éxito sin error
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('¡Reseña enviada con éxito!'),
+          SnackBar(
+            content: Text(l10n.succesfulReview),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2), // Reducir duración
           ),
@@ -73,7 +76,7 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al enviar la reseña: $e'),
+            content: Text('${l10n.errorSubmitting} $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -84,11 +87,12 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
         });
       }
     }
-    // No resetear _isSubmitting en caso de éxito para evitar doble envío
   }
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Card(
     margin: const EdgeInsets.all(16),
     child: Padding(
       padding: const EdgeInsets.all(16.0),
@@ -97,15 +101,15 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            'Calificar a ${widget.reviewedUserName}',
+            '${l10n.rateOne} ${widget.reviewedUserName}',
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            '¿Cómo calificarías tu experiencia?',
+          Text(
+            l10n.howRating,
             style: TextStyle(
               fontWeight: FontWeight.w500,
             ),
@@ -131,10 +135,10 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
           TextField(
             controller: _commentController,
             enabled: !_isSubmitting,
-            decoration: const InputDecoration(
-              labelText: 'Comentario (opcional)',
+            decoration: InputDecoration(
+              labelText: l10n.commentOpt,
               border: OutlineInputBorder(),
-              hintText: 'Cuéntanos tu experiencia...',
+              hintText: l10n.tellUsExp,
             ),
             maxLines: 3,
           ),
@@ -150,7 +154,7 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
                   foregroundColor: Colors.white,
                 ),
                 child: _isSubmitting
-                    ? const Row(
+                    ? Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(
@@ -162,10 +166,10 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
                       ),
                     ),
                     SizedBox(width: 8),
-                    Text('ENVIANDO...'),
+                    Text(l10n.sending),
                   ],
                 )
-                    : const Text('ENVIAR RESEÑA'),
+                    : Text(l10n.sendReview),
               ),
             ),
           ),
@@ -173,6 +177,7 @@ class _ReviewFormWidgetState extends State<ReviewFormWidget> {
       ),
     ),
   );
+}
 }
 
 // Modal para mostrar el formulario de reseña

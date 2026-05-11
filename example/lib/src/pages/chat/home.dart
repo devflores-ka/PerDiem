@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 import '../auth/auth.dart';
 import 'rooms.dart';
 import 'users.dart';
@@ -43,6 +45,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_error) {
       return Container();
     }
@@ -54,8 +57,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         systemOverlayStyle: SystemUiOverlayStyle.light,
-        title: const Text('Mensajes'),
-        // Eliminar el botón de regreso del AppBar cuando se muestra dentro del flujo principal
+        title: Text(l10n.messages),
         automaticallyImplyLeading: false,
         actions: _user != null ? [
           TextButton(
@@ -67,14 +69,13 @@ class _HomePageState extends State<HomePage> {
               );
             },
             child: Text(
-              'Nuevo chat',
+              l10n.newChat,
               style: TextStyle(
                 color: Theme.of(context).primaryColor,
               ),
             ),
           ),
         ] : null,
-        backgroundColor: Colors.blue,
       ),
       backgroundColor: Colors.white,
       body: _user == null
@@ -86,7 +87,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('No haz iniciado sesión'),
+            Text(l10n.noSession),
             TextButton(
               onPressed: () {
                 Navigator.of(context).push(
@@ -96,7 +97,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 );
               },
-              child: const Text('Iniciar sesión'),
+              child: Text(l10n.login),
             ),
           ],
         ),
@@ -112,6 +113,3 @@ class _HomePageState extends State<HomePage> {
     );
   }
 }
-
-// Asegúrate de importar UsersPage si no está importado
-// import 'users.dart';

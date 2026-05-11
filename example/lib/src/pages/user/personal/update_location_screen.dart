@@ -197,7 +197,6 @@ class _UpdateLocationScreenState extends State<UpdateLocationScreen> {
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Mi Ubicación'),
-        backgroundColor: Colors.blue,
         elevation: 2,
         shadowColor: Colors.blue.withOpacity(0.3),
       ),
@@ -215,8 +214,8 @@ class _UpdateLocationScreenState extends State<UpdateLocationScreen> {
                 icon: const Icon(Icons.search),
                 label: const Text('Buscar Ubicación'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
+                  //backgroundColor: Colors.blue,
+                  foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -298,8 +297,8 @@ class _UpdateLocationScreenState extends State<UpdateLocationScreen> {
                   child: ElevatedButton(
                     onPressed: _isSaving ? null : _saveLocation,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                      //backgroundColor: Colors.blue,
+                      foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                     child: _isSaving

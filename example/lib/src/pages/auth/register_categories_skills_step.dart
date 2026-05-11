@@ -189,8 +189,7 @@ class _RegisterCategoriesSkillsStepState extends State<RegisterCategoriesSkillsS
                 child: ElevatedButton(
                   onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueAccent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                   ),
                   child: Text(
                     _selectedCategories.isEmpty

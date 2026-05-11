@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '/l10n/generated/app_localizations.dart';
+
 // Clase para gestionar los filtros de trabajadores
 class WorkersFilterManager extends ChangeNotifier {
   // Listas de filtros disponibles
-  List<String> _categories = ['Todos'];
-  List<String> _skills = ['Todas']; // Lista para oficios/habilidades
+  List<String> _categories = ['Categorías'];
+  List<String> _skills = ['Oficios']; // Lista para oficios/habilidades
   List<Map<String, dynamic>> _categoriesList = [];
   List<Map<String, dynamic>> _skillsList = []; // Lista para datos de oficios
 
@@ -21,35 +23,89 @@ class WorkersFilterManager extends ChangeNotifier {
   String get errorMessage => _errorMessage;
 
   // Estado del filtro
-  String _selectedCategory = 'Todos';
-  String _selectedSkill = 'Todas';
+  String _selectedCategory = 'Categorías';
+  String _selectedSkill = 'Oficios';
   List<Map<String, dynamic>>? _nearbyWorkers;
   bool _isLoading = true;
   String _errorMessage = '';
 
+  String _labelCategories = 'Categorías';
+  String _labelTrades = 'Oficios';
+
   // Constructor con valores iniciales opcionales
   WorkersFilterManager({
-    String initialCategory = 'Todos',
-    String initialSkill = 'Todas',
+    String initialCategory = 'Categorías',
+    String initialSkill = 'Oficios',
     bool initialLoading = true,
   }) :
         _selectedCategory = initialCategory,
         _selectedSkill = initialSkill,
         _isLoading = initialLoading {
     // Cargar categorías y oficios al inicializar
-    _fetchCategories();
+    fetchCategories();
     _fetchSkills();
+  }
+
+  // Actualizar los textos y reconstruirlos en las listas
+  void updateLocalization(AppLocalizations l10n) {
+    // Solo actualizamos si el texto cambió para evitar reconstrucciones innecesarias
+    if (_labelCategories != l10n.categories || _labelTrades != l10n.trades) {
+      _labelCategories = l10n.categories;
+      _labelTrades = l10n.trades;
+      
+      // Actualizamos las selecciones si estaban en el valor por defecto antiguo
+      if (_selectedCategory == 'Categorías' || _selectedCategory != l10n.categories) {
+         // Lógica para mantener consistencia si cambia el idioma en caliente
+         if (_categories.contains(_selectedCategory) && _selectedCategory != _categories.first) {
+           // Mantenemos la selección actual si es válida
+         } else {
+           _selectedCategory = _labelCategories;
+         }
+      }
+      
+      if (_selectedSkill == 'Oficios' || _selectedSkill != l10n.trades) {
+           // Mismo chequeo para skills...
+           if (!_skillsList.any((s) => s['name'] == _selectedSkill)) {
+              _selectedSkill = _labelTrades;
+           }
+      }
+
+      _rebuildLists(); // Método auxiliar (ver abajo)
+    }
+  }
+
+  // Refactoriza la construcción de listas para no repetir código
+  void _rebuildLists() {
+    _categories = [_labelCategories] + _categoriesList.map((c) => c['name'] as String).toList();
+    
+    // Lógica de filtrado de skills
+    if (_selectedCategory == _labelCategories) {
+      _skills = [_labelTrades] + _skillsList.map((s) => s['name'] as String).toList();
+    } else {
+      final categoryId = _getCategoryId(_selectedCategory);
+      if (categoryId != null) {
+        final filteredSkills = _skillsList
+            .where((skill) => skill['category_id'] == categoryId)
+            .map((skill) => skill['name'] as String)
+            .toList();
+        _skills = [_labelTrades] + filteredSkills;
+      } else {
+        _skills = [_labelTrades];
+      }
+    }
+    notifyListeners();
   }
 
   // Métodos para manipular el estado
   void setCategory(String category) {
     if (_selectedCategory != category) {
       _selectedCategory = category;
+      _rebuildLists();
 
       // Si cambia la categoría, filtrar los oficios por esa categoría
-      if (category == 'Todos') {
+      if (category == _labelCategories) {
         // Mostrar todos los oficios
-        _skills = ['Todas'] + _skillsList.map((s) => s['name'] as String).toList();
+        _skills = [_labelTrades] + _skillsList.map((s) => s['name'] as String).toList();
       } else {
         // Filtrar oficios por categoría seleccionada
         final categoryId = _getCategoryId(category);
@@ -58,13 +114,13 @@ class WorkersFilterManager extends ChangeNotifier {
               .where((skill) => skill['category_id'] == categoryId)
               .map((skill) => skill['name'] as String)
               .toList();
-          _skills = ['Todas'] + filteredSkills;
+          _skills = [_labelTrades] + filteredSkills;
         }
       }
 
       // Resetear la habilidad seleccionada si ya no está disponible
       if (!_skills.contains(_selectedSkill)) {
-        _selectedSkill = 'Todas';
+        _selectedSkill = _labelTrades;
       }
 
       notifyListeners();
@@ -111,7 +167,7 @@ class WorkersFilterManager extends ChangeNotifier {
   }
 
   // Métodos para obtener datos desde Supabase
-  Future<void> _fetchCategories() async {
+  Future<void> fetchCategories([String? locale]) async {
     try {
       final supabase = Supabase.instance.client;
       final response = await supabase
@@ -127,7 +183,8 @@ class WorkersFilterManager extends ChangeNotifier {
           },
         ).toList();
 
-        _categories = ['Todos'] + _categoriesList.map((c) => c['name'] as String).toList();
+        _categories = ['Categorías'] + _categoriesList.map((c) => c['name'] as String).toList();
+        _rebuildLists();
       });
 
       if (kDebugMode) {
@@ -159,7 +216,8 @@ class WorkersFilterManager extends ChangeNotifier {
         ).toList();
 
         // Inicialmente mostrar todos los oficios
-        _skills = ['Todas'] + _skillsList.map((o) => o['name'] as String).toList();
+        _skills = ['Oficios'] + _skillsList.map((o) => o['name'] as String).toList();
+        _rebuildLists();
       });
 
       if (kDebugMode) {
@@ -181,17 +239,17 @@ class WorkersFilterManager extends ChangeNotifier {
 
   // Método para filtrar trabajadores por categoría y habilidad
   List<Map<String, dynamic>> filterWorkersByCategory(List<Map<String, dynamic>> workers) {
-    List<Map<String, dynamic>> filteredWorkers = workers;
+    var filteredWorkers = workers;
 
     // Filtrar por categoría
-    if (_selectedCategory != 'Todos') {
+    if (_selectedCategory != _labelCategories) {
       filteredWorkers = filteredWorkers.where((worker) =>
       worker['category'] == _selectedCategory,
       ).toList();
     }
 
     // Filtrar por oficio/habilidad
-    if (_selectedSkill != 'Todas') {
+    if (_selectedSkill != _labelTrades) {
       filteredWorkers = filteredWorkers.where((worker) =>
       worker['skill'] == _selectedSkill ||
           worker['oficio'] == _selectedSkill ||
@@ -205,8 +263,9 @@ class WorkersFilterManager extends ChangeNotifier {
 
   // Método para obtener el icono de cada categoría
   IconData getCategoryIcon(String category) {
+    if (category == _labelCategories) return Icons.work;
     switch (category.toLowerCase()) {
-      case 'todos':
+      case 'categorias':
         return Icons.work;
       case 'plomería':
       case 'plomeria':
@@ -229,12 +288,13 @@ class WorkersFilterManager extends ChangeNotifier {
       default:
         return Icons.category;
     }
+    return Icons.build;
   }
 
   // Método para obtener el icono de cada oficio/habilidad
   IconData getSkillIcon(String skill) {
     switch (skill.toLowerCase()) {
-      case 'todas':
+      case 'oficios':
         return Icons.star;
     // Oficios de plomería
       case 'reparación de tuberías':

@@ -118,8 +118,7 @@ class _AuthScreenState extends State<AuthScreen> {
     // El resto del método build permanece igual...
     appBar: AppBar(
       title: const Text('Iniciar Sesión'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      foregroundColor: Colors.black,
     ),
     body: Container(
       padding: const EdgeInsets.all(20),

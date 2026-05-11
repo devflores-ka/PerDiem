@@ -1,0 +1,8 @@
+# 1. Ignorar absolutamente TODA la carpeta
+*
+
+# 2. Excepciones: Permitir SOLO lo que necesita Docker
+!build/
+!build/web/**
+!nginx.conf
+!Dockerfile

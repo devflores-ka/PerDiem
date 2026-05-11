@@ -1,8 +1,10 @@
-// Archivo: lib/models/user_negotiation.dart
+// lib/models/user_negotiation.dart
 
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:intl/intl.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+
+import '/l10n/generated/app_localizations.dart';
 import '../services/budget_proposal_service.dart';
 
 class RoomNegotiation {

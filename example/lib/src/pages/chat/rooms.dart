@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../../widgets/room_tile.dart';
 import 'room.dart';
@@ -61,7 +63,9 @@ class _RoomsPageState extends State<RoomsPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Column(
+  Widget build(BuildContext context) { 
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
     crossAxisAlignment: CrossAxisAlignment.center,
     children: [
       FractionallySizedBox(
@@ -69,7 +73,7 @@ class _RoomsPageState extends State<RoomsPage> {
         child: TextField(
           decoration: InputDecoration(
             border: OutlineInputBorder(),
-            labelText: 'Search',
+            labelText: l10n.search,
           ),
           onChanged: (value) => _setFilters(value),
         ),
@@ -120,4 +124,5 @@ class _RoomsPageState extends State<RoomsPage> {
       ),
     ],
   );
+}
 }

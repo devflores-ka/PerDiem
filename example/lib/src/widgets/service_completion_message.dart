@@ -1,7 +1,9 @@
-// Archivo: lib/widgets/service_completion_message.dart
+// lib/widgets/service_completion_message.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../services/budget_proposal_service.dart';
 import '../services/review_service.dart';
@@ -79,6 +81,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
   }
 
   Future<void> _markAsCompleted() async {
+    final l10n = AppLocalizations.of(context)!;
     if (!mounted) return;
 
     setState(() {
@@ -90,7 +93,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
 
       // Enviar mensaje al chat informando sobre la finalización
       final message = types.PartialText(
-        text: '✅ El servicio ha sido marcado como COMPLETADO',
+        text: l10n.serviceCompleted,
       );
 
       await SupabaseChatCore.instance.sendMessage(
@@ -100,8 +103,8 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Servicio marcado como completado'),
+          SnackBar(
+            content: Text(l10n.serviceMarkedCompltd),
             backgroundColor: Colors.green,
           ),
         );
@@ -119,7 +122,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error al marcar el servicio como completado: $e'),
+            content: Text('${l10n.errorServiceMarkedCompltd} $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -131,10 +134,11 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
   }
 
   Future<void> _markAsNotCompleted() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Simplemente enviamos un mensaje indicando que el servicio no está completo
       final message = types.PartialText(
-        text: '⚠️ Se ha indicado que el servicio NO está completado aún',
+        text: l10n.serviceStillIncompltd,
       );
 
       await SupabaseChatCore.instance.sendMessage(
@@ -144,8 +148,8 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Se ha registrado que el servicio no está completado'),
+          SnackBar(
+            content: Text(l10n.serviceRegNotCompltd),
             backgroundColor: Colors.orange,
           ),
         );
@@ -183,6 +187,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     if (_isLoading) {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -193,6 +198,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
 
     // Si el servicio ya está completado, mostrar opciones para calificar
     if (_serviceCompleted) {
+      final l10n = AppLocalizations.of(context)!;
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
         padding: const EdgeInsets.all(16),
@@ -209,7 +215,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
                 Icon(Icons.check_circle, color: Colors.green[700]),
                 const SizedBox(width: 8),
                 Text(
-                  'Servicio Completado',
+                  l10n.srvCompltd,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     color: Colors.green[700],
@@ -227,7 +233,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
                 child: ElevatedButton.icon(
                   onPressed: _showReviewForm,
                   icon: const Icon(Icons.star_border),
-                  label: const Text('Calificar'),
+                  label: Text(l10n.rate),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.white,
@@ -249,7 +255,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        '¡Gracias por tu reseña! Tu opinión es muy valiosa.',
+                        l10n.thxFTReview,
                         style: TextStyle(
                           color: Colors.amber[800],
                           fontWeight: FontWeight.w500,
@@ -277,8 +283,8 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '¿Se ha completado el servicio?',
+          Text(
+            l10n.serviceDoneYet,
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
@@ -302,7 +308,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
                       color: Colors.white,
                     ),
                   )
-                      : const Text('Sí'),
+                      : Text(l10n.yes),
                 ),
               ),
               const SizedBox(width: 16),
@@ -312,7 +318,7 @@ class _ServiceCompletionMessageState extends State<ServiceCompletionMessage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isLoading ? Colors.grey : Colors.orange,
                   ),
-                  child: const Text('No'),
+                  child: Text(l10n.no),
                 ),
               ),
             ],

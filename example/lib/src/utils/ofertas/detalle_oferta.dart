@@ -1,9 +1,9 @@
-// Archivo: lib/widgets/ofertas/detalle_oferta.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
+
+import '/l10n/generated/app_localizations.dart';
 
 import '../../widgets/rating_display.dart';
 import '../reviews/user_reviews_preview.dart';
@@ -24,11 +24,12 @@ class DetalleOferta extends StatelessWidget {
   final String avatarUrl;
   final double calificacion;
   final String numResenas;
-  final bool mostrarCalificacion; // Nueva propiedad
+  final bool mostrarCalificacion;
   final double latitud;
   final double longitud;
   final String offerId;
   final String offerName;
+  final String userId;
 
   const DetalleOferta({
     super.key,
@@ -39,34 +40,20 @@ class DetalleOferta extends StatelessWidget {
     required this.avatarUrl,
     required this.calificacion,
     required this.numResenas,
-    this.mostrarCalificacion = false, // Por defecto no mostrar
+    this.mostrarCalificacion = false,
     required this.latitud,
     required this.longitud,
     required this.offerId,
     required this.offerName,
+    required this.userId,
   });
 
-  // Método para obtener el userId desde el offerId de manera segura
-  String getUserIdFromOfferId() {
-    try {
-      final parts = offerId.split('-');
-      if (parts.isNotEmpty) {
-        debugPrint('🆔 DetalleOferta: userId extraído del offerId: ${parts.first}');
-        return parts.first;
-      }
-    } catch (e) {
-      debugPrint('❌ Error obteniendo userId desde offerId: $e');
-    }
-
-    // Si no podemos extraer el ID del usuario de la oferta, intentar usar el offerId directamente
-    debugPrint('⚠️ DetalleOferta: Usando offerId completo como userId: $offerId');
-    return offerId;
-  }
-
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
     appBar: AppBar(
-      title: const Text('Detalles del Servicio'),
+      title: Text(l10n.detailsService),
     ),
     backgroundColor: Colors.white,
     body: SingleChildScrollView(
@@ -96,7 +83,6 @@ class DetalleOferta extends StatelessWidget {
                           color: Colors.black,
                         ),
                       ),
-                      // Solo mostrar calificación si hay datos
                       if (mostrarCalificacion)
                         RatingDisplay(
                           rating: calificacion,
@@ -162,7 +148,7 @@ class DetalleOferta extends StatelessWidget {
                     maxZoom: 18,
                     initialZoom: 15,
                     interactionOptions: const InteractionOptions(
-                      flags: InteractiveFlag.none, // Deshabilita interacción
+                      flags: InteractiveFlag.none,
                     ),
                   ),
                   children: [
@@ -199,13 +185,14 @@ class DetalleOferta extends StatelessWidget {
             ContactButton(
               offerId: offerId,
               offerName: offerName,
+              receiverId: userId,
             ),
 
-            // Widget con las últimas reseñas del usuario - solo mostrar si hay calificaciones
+            // Widget con las últimas reseñas del usuario
             if (mostrarCalificacion) ...[
               const SizedBox(height: 24),
-              const Text(
-                'Reseñas',
+              Text(
+                l10n.reviews,
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -213,7 +200,7 @@ class DetalleOferta extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               UserReviewsPreview(
-                userId: getUserIdFromOfferId(),
+                userId: userId,
                 userName: nombreUsuario,
               ),
             ],
@@ -222,4 +209,5 @@ class DetalleOferta extends StatelessWidget {
       ),
     ),
   );
+  }
 }

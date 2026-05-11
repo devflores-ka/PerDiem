@@ -1,0 +1,249 @@
+{   "availableServices": "Available Services",
+    "mapTitle": "Map",
+    "profileTitle": "Profile",
+    "messages": "Messages",
+    "conversation": "Conversation",
+    "myWorksTitle": "My Works",
+    "users": "Users",
+    "manageScheduleTitle": "Manage Diary",
+    "manageScheduledVisits": "My Scheduled Visits",
+    "negotiationsTitle": "My Negotiations",
+    "detailsService": "Service Details",
+    "aboutMe": "About me",
+    "skills": "Skills",
+    "noAddedSkills": "There are no added skills",
+    "specialties": "Specialties",
+    "jobs": "Jobs",
+    "comments": "Comments",
+    "noCompletedJobs": "You have no completed jobs",
+    "completedJobs": "Here you will see the services you have provided or contracted",
+    "showAllWork": "View all my work",
+    "completed": "Completed",
+    "serviceOf": "Service of",
+    "serviceContracted": "Service contracted",
+    "allServicesContracted": "Here you will see all the services you have provided or contracted once completed.",
+    "noJobsCompleted": "You have no completed jobs",
+    "suplier": "Suplier",
+    "contracted": "Contracted",
+    "noCommentsAvaliable": "No comments available",
+    "allCommentsOfUsers": "Your customers' comments will appear here",
+    "workStatus": "Work Status",
+    "visibleOnMap": "Visible on map",
+    "hiddenOnMap": "Hidden (No one sees you)",
+    "settings": "Settings",
+    "scheduleWeek": "My Weekly Planner",
+    "scheduleWeekSubtitle": "Set your work days and hours",
+    "scheduledVisits": "My Scheduled Visits",
+    "scheduledVisitsSubtitle": "Review your upcoming commitments and clients",
+    "location": "My Location",
+    "currentLocation": "Current location",
+    "locationSingle": "Location",
+    "language": "Language",
+    "terms": "Terms & Conditions",
+    "privacy": "Privacy Policy",
+    "logout": "Log out",
+
+    "editName": "Edit Name",
+    "editNameSubtitle": "Change first and last name",
+    "changeEmail": "Change Email",
+    "changeEmailSubtitle": "Update email address",
+
+    "personalInfo": "Personal information",
+    "updatePersonalInfo": "Update your name, email, and password.",
+    "specialties": "Specialties",
+    "updateSpecialties": "Manage categories and jobs",
+
+    "categories": "Categories",
+    "categorie": "Category",
+    "trades": "Trades",
+
+    "cantContactYourself": "You cannot contact your own offer",
+    "contact": "Contact",
+
+    "reviews": "Reviews",
+
+    "plsSelectCalf": "Please select a rating",
+    "succesfulReview": "Review submitted successfully!",
+    "errorSubmitting": "Error submitting review:",
+    "rateOne": "Rate",
+    "howRating": "How would you rate your experience?",
+    "rate": "Rate",
+    "commentOpt": "Comment (optional)",
+    "tellUsExp": "Tell us about your experience...",
+    "sending": "SENDING...",
+    "sendReview": "SUBMIT REVIEW",
+    "send": "Send",
+
+    "serviceCompleted": "The service has been marked as COMPLETED",
+    "serviceMarkedCompltd": "Service marked as completed",
+    "errorServiceMarkedCompltd": "Error marking the service as completed:",
+    "serviceStillIncompltd": "It has been indicated that the service is NOT yet complete.",
+    "serviceRegNotCompltd": "It has been recorded that the service is not completed.",
+    "srvCompltd": "Service Completed",
+
+    "thxFTReview": "Thank you for your review! Your opinion is very valuable.",
+    "serviceDoneYet": "Has the service been completed?",
+
+    "yes": "Yes",
+    "no": "No",
+
+    "mySpeciality": "My specialties",
+    "editCatdnOf": "Edit categories and professions",
+    "noCatConf": "You have no categories set up",
+    "addCats": "Add your specialties so others can find you",
+    "addSpecs": "Add specialties",
+    "noProff": "No specified occupations",
+
+    "myServices": "My Services",
+    "noServiceOnAir": "No services are listed",
+
+    "budget": "Budget",
+    "createBudget": "Create Budget",
+
+    "budgetAccept": "Budget proposal ACCEPTED:",
+    "yourBudgetAccept": "Your budget proposal has been ACCEPTED",
+    "uHvAccept": "You have accepted the budget proposal",
+    "errorAccepting": "Error accepting proposal:",
+    "newBudgetProp": "New budget proposal:",
+    "propSended": "Budget proposal sent",
+    "errorSendProp": "Error sending proposal:",
+    "pendingProp": "You have a pending budget proposal",
+
+    "budgetRejected": "Budget proposal REJECTED:",
+    "yourBudgetRejected": "Your budget proposal has been REJECTED",
+    "uHvReject": "You have rejected the budget proposal",
+    "errorRejectBudget": "Error rejecting proposal:",
+
+    "countProp": "Create a Counterproposal",
+    "sendCountProp": "Send Counterproposal",
+    "newCountProp": "New budget counterproposal:",
+    "sendedCountProp": "Counterproposal sent",
+    "errorSendingCountProp": "Error sending counterproposal:",
+    "errorShowingProp": "Error displaying proposal:",
+
+    "userNotAvaliable": "El usuario no está disponible para chat",
+    "errorContact": "Error contacting",
+
+    "selectOneCategorie": "Select a category",
+    "firstSelectOneCategorie": "First, select a category",
+    "selectOneTrade": "Select a trade",
+
+    "noCategoryAvaliable": "No categories available",
+
+    "peakUbiaction": "Select location",
+    "confirm": "Confirm",
+
+    "searchPlace": "Looking for a place...",
+
+    "search": "Search",
+
+    "newChat": "New chat",
+
+    "noSession": "You are not logged in",
+
+    "login": "Login",
+
+    "withoutReview": "No reviews",
+    "loading": "Loading...",
+
+    "searchUbiOrPickOne": "Search for an address or tap on the map",
+    "searchPickCategorie": "Tap to select...",
+    "searchUbi": "Search location",
+    "searchUbiExample": "Ex: Santiago, Chile or Av. Providencia 123",
+    "yourUbi": "Your location",
+
+    "formJobTitle": "Job Application Form",
+    "jobTitle": "Title of the work",
+    "description": "Description",
+    "amount": "Amount",
+    "imageTitle": "Image of the work",
+    "basicMode": "Having problems? Use basic mode",
+    "addImage": "Add image of the work",
+    "optional": "(Optional)",
+
+    "pickImage": "Select Image",
+    "imageQuestion": "How would you like to select the image for the job?",
+
+    "image": "Image",
+    "file": "File",
+
+    "camera": "Camera",
+    "gallery": "Galery",
+    "explorer": "Explorer",
+    "cancel": "Cancel",
+
+    "ubiJob": "Job location",
+    "bannerChangeLocation": "Press and hold to change location",
+    "openMap": "Open map",
+    "locationSelected": "Selected location:",
+
+    "publishJob": "Publish Work",
+    "publishingJob": "Posting work...",
+
+    "plsTitle": "Please enter a title",
+    "plsDescription": "Please enter a description",
+    "plsAmount": "Please enter an amount",
+    "plsCategory": "Please select a category",
+    "plsLocation": "Please select a location on the map",
+
+    "openLocationSelector": "Open location selector",
+
+    "jobDoneMessage": "Job successfully published!",
+
+    "ubiServiceDisable": "Location services disabled",
+    "deniedLocationPermission": "Location permission denied",
+    "errorGettingUbi": "Error obtaining location:",
+    "savedUbi": "Updated work location",
+    "updatedUbi": "Updated location",
+
+    "userNotAuth": "Unauthenticated user",
+    "selectCategory": "You must select a category",
+
+    "point": "POINT",
+    "error": "Error",
+
+    "errorSaving": "Error saving:",
+
+    "lat": "Latitude:",
+    "lng": "Length:",
+
+    "securityTitle": "Security",
+    "changePassword": "Change Password",
+    "changePasswordSubtitle": "Update your password",
+    "privacySecurity": "Privacy & Security",
+    "privacySecuritySubtitle": "Configure permissions and privacy",
+
+    "legalTitle": "Legal",
+    "termsSubtitle": "Platform usage rules",
+    "privacyPolicySubtitle": "How we handle your data",
+
+    "appTitle": "App",
+    "helpSupport": "Help & Support",
+    "helpSupportSubtitle": "Help center and contact",
+    "about": "About",
+    "aboutSubtitle": "App version and info",
+
+    "view": "View",
+
+    "fromCalendar": "From",
+    "untilCalendar": "Until",
+
+    "change": "Change",
+    "remove": "Remove",
+
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday",
+
+    "update": "Update",
+
+    "all": "All",
+    "pending": "Pending",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "countered": "Countered"
+}

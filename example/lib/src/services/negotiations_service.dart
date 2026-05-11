@@ -1,7 +1,7 @@
 // Archivo: lib/services/negotiations_service.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
-import 'package:flutter_supabase_chat_core/flutter_supabase_chat_core.dart';
+import 'package:perdiem_app/flutter_supabase_chat_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'budget_proposal_service.dart';
 

@@ -188,8 +188,7 @@ class _RegisterPersonalDataStepState extends State<RegisterPersonalDataStep> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Datos Personales'),
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      foregroundColor: Colors.black,
       automaticallyImplyLeading: false,
     ),
     body: Container(

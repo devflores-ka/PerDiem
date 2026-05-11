@@ -93,8 +93,7 @@ class _EditNameScreenState extends State<EditNameScreen> {
   Widget build(BuildContext context) => Scaffold(
       appBar: AppBar(
         title: const Text('Editar nombre'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        foregroundColor: Colors.black,
         elevation: 2,
       ),
       body: _isLoading

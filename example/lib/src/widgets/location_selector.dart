@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '/l10n/generated/app_localizations.dart';
 import '../services/geographic_service.dart';
 
 class LocationSelectorScreen extends StatefulWidget {
@@ -72,18 +73,19 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Scaffold(
       appBar: AppBar(
-        title: const Text('Seleccionar ubicación'),
-        backgroundColor: Colors.blueAccent,
+        title: Text(l10n.peakUbiaction),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(context, _selectedPosition);
             },
-            child: const Text(
-              'Confirmar',
-              style: TextStyle(color: Colors.white),
+            child: Text(
+              l10n.confirm,
+              style: TextStyle(color: Colors.blue),
             ),
           ),
         ],
@@ -158,8 +160,8 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen> {
                           ),
                         ],
                       ),
-                      child: const Text(
-                        'Busca una dirección o toca en el mapa',
+                      child: Text(
+                        l10n.searchUbiOrPickOne,
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -180,15 +182,17 @@ class _LocationSelectorScreenState extends State<LocationSelectorScreen> {
         ],
       ),
     );
+  }
 
   Widget _buildSearchBar() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          labelText: 'Buscar ubicación',
-          hintText: 'Ej: Santiago, Chile o Av. Providencia 123',
+          labelText: l10n.searchUbi,
+          hintText: l10n.searchUbiExample,
           prefixIcon: _isSearching
               ? const Padding(
             padding: EdgeInsets.all(14),

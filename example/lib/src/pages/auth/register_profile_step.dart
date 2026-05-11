@@ -381,8 +381,7 @@ class _RegisterProfileStepState extends State<RegisterProfileStep> {
     appBar: AppBar(
       title: const Text('Completa tu perfil'),
       automaticallyImplyLeading: false, // No mostrar botón de retroceso
-      backgroundColor: Colors.blue,
-      foregroundColor: Colors.white,
+      foregroundColor: Colors.black,
     ),
     body: Container(
       padding: const EdgeInsets.all(20),
