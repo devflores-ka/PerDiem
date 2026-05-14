@@ -32,6 +32,9 @@ target 'Runner' do
   use_frameworks! :linkage => :static
   use_modular_headers!
 
+  # ✅ La solución mágica para que libphonenumber_plugin no explote
+  pod 'PhoneNumberKit', '~> 3.7.6'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
   target 'RunnerTests' do
@@ -44,61 +47,16 @@ post_install do |installer|
     flutter_additional_ios_build_settings(target)
 
     target.build_configurations.each do |config|
-      config.build_settings['SWIFT_ENABLE_EXPLICIT_MODULES'] = 'NO'
-      
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.6'
+      
+      # ESTO ES VITAL PARA GOOGLE ML KIT EN MACS CON APPLE SILICON
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
-      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-
-      config.build_settings['CLANG_USE_RESPONSE_FILE'] = 'NO'
-      config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
-      config.build_settings['CLANG_ENABLE_EXPLICIT_MODULES'] = 'NO'
       
-      libphone_modulemap = File.join(
-        installer.sandbox.root,
-        'Target Support Files', 'libphonenumber_plugin', 'libphonenumber_plugin.modulemap'
-      )
-      if File.exist?(libphone_modulemap)
-        content = File.read(libphone_modulemap)
-        unless content.include?('PhoneNumberKit')
-          new_content = content.sub(
-            "framework module libphonenumber_plugin {",
-            "framework module libphonenumber_plugin {\n  use PhoneNumberKit"
-          )
-          File.write(libphone_modulemap, new_content)
-          puts "Patched libphonenumber_plugin.modulemap"
-        end
-      end
-      
-      if target.name == 'PhoneNumberKit'
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'NO'
+      # La cura de PhoneNumberKit
+      if target.name == 'PhoneNumberKit' || target.name == 'libphonenumber_plugin'
+        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
         config.build_settings['DEFINES_MODULE'] = 'YES'
       end
-      
-      config.build_settings['SWIFT_VERSION'] = '5.0'
-
-      if target.name == 'Firebase'
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-        config.build_settings['MODULEMAP_FILE'] = ''
-        config.build_settings['OTHER_CFLAGS'] = '$(inherited)'
-        config.build_settings['CLANG_ENABLE_MODULES'] = 'NO'
-
-      config.build_settings['CLANG_USE_RESPONSE_FILE'] = 'NO'
-      config.build_settings['COMPILER_INDEX_STORE_ENABLE'] = 'NO'
-      config.build_settings['SWIFT_COMPILATION_MODE'] = 'singlefile'
-      end
-
-      config.build_settings['HEADER_SEARCH_PATHS'] = '$(inherited) $(PODS_ROOT)/Headers/Public $(PODS_ROOT)/Headers/Private'
     end
-  end
-
-  # Eliminar el modulemap del pod Firebase paraguas para que no interfiera
-  firebase_modulemap = File.join(
-    installer.sandbox.root,
-    'Firebase', 'CoreOnly', 'Sources', 'module.modulemap'
-  )
-  if File.exist?(firebase_modulemap)
-    puts "Removing Firebase umbrella modulemap: #{firebase_modulemap}"
-    File.delete(firebase_modulemap)
   end
 end
