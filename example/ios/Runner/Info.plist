@@ -42,6 +42,10 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+    <key>NSCameraUsageDescription</key>
+    <string>PerDiem necesita acceso a la cámara para capturar fotos de servicios, productos o documentos.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>PerDiem necesita acceso a la galería de fotos para que puedas adjuntar imágenes de su portafolio o documentos legales.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>PerDiem necesita acceso continuo a la ubicación para servicios en segundo plano y seguimiento de gastos</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
