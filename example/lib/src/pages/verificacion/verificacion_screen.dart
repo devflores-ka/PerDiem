@@ -72,33 +72,38 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
 
-      // 1. Subir Frente
-      final frontPath = '${user.id}/front_$timestamp.jpg';
+      final frontFileName = 'front_$timestamp.jpg'; // Creamos solo el nombre
+      final frontStoragePath = '${user.id}/$frontFileName'; // Ruta para el bucket
+
       await supabase.storage.from('verification_docs').upload(
-        frontPath,
+        frontStoragePath, // Subimos a la carpeta del usuario
         _frontImage!,
         fileOptions: const FileOptions(upsert: true),
       );
-      // ELIMINADO: getPublicUrl
 
       // 2. Subir Dorso
-      final backPath = '${user.id}/back_$timestamp.jpg';
+      final backFileName = 'back_$timestamp.jpg'; // Creamos solo el nombre
+      final backStoragePath = '${user.id}/$backFileName'; // Ruta para el bucket
+
       await supabase.storage.from('verification_docs').upload(
-        backPath,
+        backStoragePath, // Subimos a la carpeta del usuario
         _backImage!,
         fileOptions: const FileOptions(upsert: true),
       );
-      // ELIMINADO: getPublicUrl
 
-      // 3. Actualizar Base de Datos (GUARDAMOS LOS PATHS, NO URLs)
+      // 3. Actualizar Base de Datos
+
+      // A. Actualizamos el estado a pendiente en la tabla de usuarios
       await supabase.schema('chats').from('users').update({
         'verification_status': 'pending',
-        'verification_docs': {
-          'front_path': frontPath, // Guardamos la ruta interna
-          'back_path': backPath,   // Guardamos la ruta interna
-          'uploaded_at': DateTime.now().toIso8601String(),
-        }
       }).eq('id', user.id);
+
+      // B. Insertamos los paths limpios en la tabla de documentos
+      await supabase.schema('chats').from('verification_docs').upsert({
+        'user_id': user.id,
+        'front_path': frontFileName, // Se guarda como: "front_XXXXXXXXXXXX.jpg"
+        'back_path': backFileName,   // Se guarda como: "back_XXXXXXXXXXXXX.jpg"
+      });
 
       if (mounted) {
         showDialog(

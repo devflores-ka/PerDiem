@@ -7,6 +7,7 @@ import '../../../managers/language_provider.dart';
 import '../../auth/legal_doc_screen.dart';
 import 'change_email_screen.dart';
 import 'change_password_screen.dart';
+import 'delete_account_screen.dart';
 import 'edit_name_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -105,6 +106,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: l10n.privacyPolicySubtitle,
             onTap: () => _navigateToPrivacySettings(context),
           ),
+
+          // ZONA PELIGROSA
+          _buildSectionHeader(l10n.dangerZone),
+          _buildSettingsTile(
+            context,
+            icon: Icons.delete_forever,
+            iconColor: Colors.red, // Destacamos el icono en rojo
+            title: l10n.deleteAcc,
+            subtitle: l10n.deleteAccDef,
+            onTap: () => _navigateToDeleteAccount(context),
+          ),
+
+          const SizedBox(height: 30),
 
           const SizedBox(height: 20),
 
@@ -344,6 +358,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const SnackBar(
         content: Text('Función en desarrollo'),
         backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
+  void _navigateToDeleteAccount(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DeleteAccountScreen(
+          userProfile: widget.userProfile,
+        ),
       ),
     );
   }

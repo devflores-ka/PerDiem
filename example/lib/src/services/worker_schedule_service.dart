@@ -13,7 +13,9 @@ class WorkerScheduleService {
       };
 
       // Llamada a la función RPC actualizada
-      final isAvailable = await _supabase.rpc('check_worker_availability', params: params);
+      final isAvailable = await _supabase
+          .schema('jobs')
+          .rpc('check_worker_availability', params: params);
       return isAvailable as bool;
     } catch (e) {
       if (kDebugMode) {

@@ -9,6 +9,12 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
+  String get home => 'Home';
+
+  @override
+  String get searchPage => 'Search';
+
+  @override
   String get availableServices => 'Available Services';
 
   @override
@@ -609,4 +615,190 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get countered => 'Countered';
+
+  @override
+  String get determinedSector => 'Determined sector';
+
+  @override
+  String get locationPermissionsDenied => 'Location permissions denied';
+
+  @override
+  String get locationPermissionsDeniedPermanently =>
+      'Location permissions permanently denied';
+
+  @override
+  String get errorGettingLocation => 'Error getting location';
+
+  @override
+  String get receivePaymentsInstantly => 'Receive your payments instantly!';
+
+  @override
+  String get mercadoPagoPromptDescription =>
+      'To start receiving digital payments from your clients, you need to link your Mercado Pago account to Perdiem.';
+
+  @override
+  String get linkNow => 'Link now';
+
+  @override
+  String get doItLater => 'Do it later';
+
+  @override
+  String get cashOnly => 'Cash only';
+
+  @override
+  String get cashOnlyDescription =>
+      'You haven\'t linked your Mercado Pago account. If you decide to continue, your service will be published but you will have to arrange cash payment directly with your clients.\n\nWhat do you want to do?';
+
+  @override
+  String get linkMP => 'Link MP';
+
+  @override
+  String get publishInCash => 'Publish in cash';
+
+  @override
+  String get errorVerifyingAccount => 'Error verifying account';
+
+  @override
+  String get verificationRequired => 'Verification Required';
+
+  @override
+  String get verificationRequiredDescription =>
+      'For the security of the community, we need to validate your identity before publishing jobs.';
+
+  @override
+  String get verifyNow => 'Verify Now';
+
+  @override
+  String get verificationInProgress => 'Verification in Progress';
+
+  @override
+  String get verificationInProgressDescription =>
+      'Your documents are being reviewed by our team. We will notify you soon.';
+
+  @override
+  String get understood => 'Understood';
+
+  @override
+  String get requestRejected => 'Request Rejected';
+
+  @override
+  String get requestRejectedDescription =>
+      'There was a problem with your documents. Please try uploading them again.';
+
+  @override
+  String get tryAgain => 'Try again';
+
+  @override
+  String get errorUpdatingLocation => 'Error updating location';
+
+  @override
+  String get searchService => 'Search service';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get noOffersWithFilters => 'No offers with these filters';
+
+  @override
+  String get viewAllOffers => 'View all offers';
+
+  @override
+  String get filtersCleared => 'Filters cleared';
+
+  @override
+  String get publishService => 'Publish service';
+
+  @override
+  String get resultsFilteredBy => 'Results filtered by:';
+
+  @override
+  String get filtersClearedShowingAll =>
+      'Filters cleared. Showing everything nearby.';
+
+  @override
+  String get clearFilters => 'Clear filters';
+
+  @override
+  String get sponsor => 'SPONSOR';
+
+  @override
+  String get promoteYourService => 'Promote your service!';
+
+  @override
+  String get reachMoreCustomers =>
+      'Reach more customers with our premium plans';
+
+  @override
+  String get redirectingToPremium => 'Redirecting to premium plans...';
+
+  @override
+  String get seeMore => 'See more';
+
+  @override
+  String get browserOpenError =>
+      'Could not open the browser. Please check if you have one installed.';
+
+  @override
+  String get paymentMethod => 'Payment Method';
+
+  @override
+  String get connectMercadoPago => 'Connect your Mercado Pago account';
+
+  @override
+  String get connectMercadoPagoDesc =>
+      'By linking your account, the money from your services will be deposited directly into your Mercado Pago wallet automatically and securely.';
+
+  @override
+  String get secureConnection => '100% secure and encrypted connection';
+
+  @override
+  String get automaticTransfers => 'Automatic transfers after each job';
+
+  @override
+  String get connectWithMercadoPagoBtn => 'Connect with Mercado Pago';
+
+  @override
+  String get dangerZone => 'Danger Zone';
+
+  @override
+  String get deleteAcc => 'Delete account';
+
+  @override
+  String get deleteAccDef => 'Deactivate your account permanently';
+
+  @override
+  String get deleteAccountTitle => 'Delete account';
+
+  @override
+  String get irreversibleAction => 'This action is irreversible';
+
+  @override
+  String get cantAccessAccount =>
+      'You will not be able to access your account again.';
+
+  @override
+  String get profileNotVisible =>
+      'Your profile will no longer be visible to others.';
+
+  @override
+  String get cantRegisterAgain =>
+      'You will not be able to register again with this same email for security reasons.';
+
+  @override
+  String get confirmDeleteInstruction =>
+      'To confirm, type \"DELETE\" in the box below:';
+
+  @override
+  String get deleteKeyword => 'DELETE';
+
+  @override
+  String get processing => 'Processing...';
+
+  @override
+  String get deactivateMyAccount => 'Deactivate my account';
+
+  @override
+  String get errorDeactivatingAccount =>
+      'An error occurred while trying to deactivate the account. Please try again.';
 }

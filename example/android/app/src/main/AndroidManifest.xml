@@ -37,6 +37,10 @@
                 android:name="com.google.android.geo.API_KEY"
                 android:value="AIzaSyBAATrebPK0CyHGlvJcf7COWw6gyfqya3s"/>
 
+            <meta-data
+                android:name="io.flutter.app.android.EnableImpeller"
+                android:value="false" />
+
             <!-- Intent filter para el launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

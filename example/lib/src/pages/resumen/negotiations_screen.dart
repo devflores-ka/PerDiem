@@ -1,4 +1,4 @@
-// Archivo: lib/screens/negotiations_screen.dart
+// Archivo: lib/src/pages/resumen/negotiations_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
@@ -433,6 +433,10 @@ class _NegotiationsScreenState extends State<NegotiationsScreen> {
         return Colors.orange;
       case 'accepted':
         return Colors.green;
+      case 'paid':
+        return Colors.blue;
+      case 'failed':
+        return Colors.grey;
       case 'rejected':
         return Colors.red;
       case 'countered':
@@ -448,6 +452,10 @@ class _NegotiationsScreenState extends State<NegotiationsScreen> {
         return 'Pendiente';
       case 'accepted':
         return 'Aceptado';
+      case 'paid':
+        return 'Pagado';
+      case 'failed':
+        return 'Anulado';
       case 'rejected':
         return 'Rechazado';
       case 'countered':

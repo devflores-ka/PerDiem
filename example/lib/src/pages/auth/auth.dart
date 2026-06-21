@@ -32,18 +32,45 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      // Realizar el login
-      await Supabase.instance.client.auth.signInWithPassword(
+      // 1. Realizar el login
+      final res = await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // Una vez que el login es exitoso, verificar y actualizar el token FCM
+      final user = res.user;
+
+      if (user != null) {
+        // 2. Consultar el estado de la cuenta en la tabla pública (Gatekeeper)
+        final userData = await Supabase.instance.client
+            .schema('chats')
+            .from('users')
+            .select('is_active, deletedAt')
+            .eq('id', user.id)
+            .maybeSingle(); // Usamos maybeSingle por si el perfil aún no se crea correctamente
+
+        if (userData != null) {
+          final isActive = userData['is_active'];
+          final deletedAt = userData['deletedAt'];
+
+          // 3. Validar la regla de Soft Delete
+          if (isActive == false && deletedAt != null) {
+            // Bloquear el acceso: cerramos la sesión que Auth acaba de abrir
+            await Supabase.instance.client.auth.signOut();
+
+            setState(() {
+              _errorMessage = 'Esta cuenta ha sido eliminada o desactivada.';
+            });
+            return; // Detenemos la ejecución aquí, no avanza al MainScreen
+          }
+        }
+      }
+
+      // 4. Una vez que el login es exitoso y pasó el filtro, verificar token FCM
       if (kDebugMode) {
         print('🔑 Login exitoso, verificando token FCM...');
       }
 
-      // Verificar y actualizar el token FCM si es necesario
       final notificationService = NotificationService();
       await notificationService.ensureTokenIsRegistered();
 

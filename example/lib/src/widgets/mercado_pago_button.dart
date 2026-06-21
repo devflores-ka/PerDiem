@@ -5,12 +5,16 @@ class MercadoPagoButton extends StatefulWidget {
   final double monto;
   final String descripcion;
   final String workerId;
+  final String proposalId;
+  final String payerId;
 
   const MercadoPagoButton({
     super.key,
     required this.monto,
     required this.descripcion,
     required this.workerId,
+    required this.proposalId,
+    required this.payerId,
   });
 
   @override
@@ -26,9 +30,11 @@ class _MercadoPagoButtonState extends State<MercadoPagoButton> {
 
     try {
       await _paymentService.generarYAbrirPago(
+        proposalId: widget.proposalId,
         titulo: widget.descripcion,
         precio: widget.monto,
         receiverId: widget.workerId,
+        payerId: widget.payerId,
       );
     } catch (e) {
       if (mounted) {
@@ -45,8 +51,7 @@ class _MercadoPagoButtonState extends State<MercadoPagoButton> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context) => Container(
       margin: const EdgeInsets.only(top: 12),
       width: double.infinity,
       height: 45,
@@ -83,5 +88,4 @@ class _MercadoPagoButtonState extends State<MercadoPagoButton> {
               ),
       ),
     );
-  }
 }

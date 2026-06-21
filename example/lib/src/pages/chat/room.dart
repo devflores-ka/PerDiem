@@ -312,7 +312,7 @@ class _RoomPageState extends State<RoomPage> {
             widget.room.id,
           );
 
-          debugPrint('✅ Notificación de mensaje enviada correctamente');
+          debugPrint('Notificación de mensaje enviada correctamente');
         } catch (e) {
           debugPrint('⚠️ Error al enviar notificación de mensaje: $e');
           debugPrint('Stack trace: ${StackTrace.current}');
@@ -328,13 +328,12 @@ class _RoomPageState extends State<RoomPage> {
     });
   }
 
-  Future<void> _sendBudgetProposal(double amount, String description) async {
+  Future<void> _sendBudgetProposal(double amount, String description, String providerId) async {
     final l10n = AppLocalizations.of(context)!;
     final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
     if (currentUserId == null) return;
 
     try {
-      // Encontrar al otro usuario (no el remitente)
       final otherUser = widget.room.users.firstWhere(
             (user) => user.id != currentUserId,
         orElse: () => types.User(id: ''),
@@ -342,15 +341,14 @@ class _RoomPageState extends State<RoomPage> {
 
       if (otherUser.id.isEmpty) return;
 
-      // Crear la propuesta de presupuesto
       final proposal = await BudgetProposalService.createProposal(
         roomId: widget.room.id,
         receiverId: otherUser.id,
         amount: amount,
         description: description,
+        providerId: providerId, // Pasamos el proveedor a la BD
       );
 
-      // Enviar un mensaje especial al chat para notificar sobre la propuesta
       final message = types.PartialCustom(
         metadata: {
           'type': 'budget_proposal',
@@ -358,12 +356,8 @@ class _RoomPageState extends State<RoomPage> {
         },
       );
 
-      await SupabaseChatCore.instance.sendMessage(
-        message,
-        widget.room.id,
-      );
+      await SupabaseChatCore.instance.sendMessage(message, widget.room.id);
 
-      // Notificar al otro usuario
       await NotificationService.sendNewMessageNotification(
         otherUser.id,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
@@ -372,18 +366,12 @@ class _RoomPageState extends State<RoomPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.propSended),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text(l10n.propSended), backgroundColor: Colors.green),
       );
     } catch (e) {
       debugPrint('Error al enviar propuesta de presupuesto: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.errorSendProp} ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('${l10n.errorSendProp} ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }
@@ -537,27 +525,25 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
-// Enviar una contrapropuesta
+  // Enviar una contrapropuesta
   Future<void> _sendCounterProposal(
       BudgetProposal originalProposal,
       double amount,
       String description,
       ) async {
-    final l10n = AppLocalizations.of(context)!;    
+    final l10n = AppLocalizations.of(context)!;
     final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
     if (currentUserId == null) return;
 
     try {
-      // Crear la contrapropuesta
       final counterProposal = await BudgetProposalService.createCounterProposal(
-        originalProposalId: originalProposal.id,
+        originalProposal: originalProposal, // Pasamos el objeto completo
         roomId: widget.room.id,
-        receiverId: originalProposal.senderId, // El receptor ahora es el remitente original
+        receiverId: originalProposal.senderId,
         amount: amount,
         description: description,
       );
 
-      // Enviar un mensaje especial al chat para notificar sobre la contrapropuesta
       final message = types.PartialCustom(
         metadata: {
           'type': 'budget_proposal',
@@ -566,12 +552,8 @@ class _RoomPageState extends State<RoomPage> {
         },
       );
 
-      await SupabaseChatCore.instance.sendMessage(
-        message,
-        widget.room.id,
-      );
+      await SupabaseChatCore.instance.sendMessage(message, widget.room.id);
 
-      // Notificar al otro usuario
       await NotificationService.sendNewMessageNotification(
         originalProposal.senderId,
         SupabaseChatCore.instance.loggedUser?.firstName ?? 'Usuario',
@@ -580,18 +562,12 @@ class _RoomPageState extends State<RoomPage> {
       );
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.sendedCountProp),
-          backgroundColor: Colors.green,
-        ),
+        SnackBar(content: Text(l10n.sendedCountProp), backgroundColor: Colors.green),
       );
     } catch (e) {
       debugPrint('Error al enviar contrapropuesta: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${l10n.errorSendingCountProp} ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('${l10n.errorSendingCountProp} ${e.toString()}'), backgroundColor: Colors.red),
       );
     }
   }
@@ -600,53 +576,92 @@ class _RoomPageState extends State<RoomPage> {
     final l10n = AppLocalizations.of(context)!;
     final amountController = TextEditingController();
     final descriptionController = TextEditingController();
+    bool iAmProvidingService = true; // Estado por defecto
 
     showDialog(
       context: context,
-      builder: (BuildContext context) => AlertDialog(
-          title: Text(l10n.createBudget),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: amountController,
-                decoration: InputDecoration(
-                  labelText: l10n.amount,
-                  prefixIcon: Icon(Icons.attach_money),
-                ),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      builder: (BuildContext context) => StatefulBuilder( // Usamos StatefulBuilder para actualizar el switch
+          builder: (context, setStateDialog) => AlertDialog(
+              title: Text(l10n.createBudget),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Selector de Rol
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('¿Cuál es tu rol en este trabajo?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        RadioListTile<bool>(
+                          title: const Text('Yo prestaré el servicio (Cobro)', style: TextStyle(fontSize: 13)),
+                          value: true,
+                          groupValue: iAmProvidingService,
+                          dense: true,
+                          onChanged: (value) => setStateDialog(() => iAmProvidingService = value!),
+                        ),
+                        RadioListTile<bool>(
+                          title: const Text('Yo contrato el servicio (Pago)', style: TextStyle(fontSize: 13)),
+                          value: false,
+                          groupValue: iAmProvidingService,
+                          dense: true,
+                          onChanged: (value) => setStateDialog(() => iAmProvidingService = value!),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: amountController,
+                    decoration: InputDecoration(
+                      labelText: l10n.amount,
+                      prefixIcon: const Icon(Icons.attach_money),
+                    ),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: descriptionController,
+                    decoration: InputDecoration(
+                      labelText: l10n.description,
+                      prefixIcon: const Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: InputDecoration(
-                  labelText: l10n.description,
-                  prefixIcon: Icon(Icons.description),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(l10n.cancel),
                 ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(l10n.cancel),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (amountController.text.isNotEmpty) {
-                  _sendBudgetProposal(
-                    double.parse(amountController.text),
-                    descriptionController.text,
-                  );
-                  Navigator.pop(context);
-                }
-              },
-              child: Text(l10n.send),
-            ),
-          ],
-        ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (amountController.text.isNotEmpty) {
+                      final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
+                      final otherUser = widget.room.users.firstWhere((u) => u.id != currentUserId);
+
+                      // Definimos quién es el proveedor basado en lo que seleccionó
+                      final providerId = iAmProvidingService ? currentUserId! : otherUser.id;
+
+                      _sendBudgetProposal(
+                        double.parse(amountController.text),
+                        descriptionController.text,
+                        providerId, // Se lo pasamos a la función
+                      );
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text(l10n.send),
+                ),
+              ],
+            )
+      ),
     );
   }
 

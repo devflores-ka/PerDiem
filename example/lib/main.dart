@@ -51,7 +51,7 @@ void main() async {
   }
 
   runApp(
-    // ✅ Envolvemos la app en MultiProvider para inyectar el idioma
+    //  Envolvemos la app en MultiProvider para inyectar el idioma
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => LanguageProvider()),
@@ -66,7 +66,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Escuchamos el idioma actual
+    //  Escuchamos el idioma actual
     final languageProvider = Provider.of<LanguageProvider>(context);
 
     return MaterialApp(
@@ -75,10 +75,10 @@ class MyApp extends StatelessWidget {
       title: 'PerDiem', // Nombre de tu app
       debugShowCheckedModeBanner: false,
 
-      // ✅ CONFIGURACIÓN DE IDIOMAS (Aquí ocurre la magia)
+      //  CONFIGURACIÓN DE IDIOMAS
       locale: languageProvider.locale, // Usa el idioma del Provider
       localizationsDelegates: const [
-        AppLocalizations.delegate, // El delegado generado por tus archivos .arb
+        AppLocalizations.delegate, // El delegado generado por archivos .arb
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -148,13 +148,9 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ TRADUCCIÓN DEL MENÚ INFERIOR
-    // Usamos AppLocalizations.of(context)! para obtener los textos
-    // Nota: Necesitas definir estas claves en tus archivos .arb (bottomNavHome, etc.)
-    // Si aún no las tienes, usa texto duro temporalmente o define las keys.
-    
-    // Ejemplo de cómo se vería con traducción real:
-    // final l10n = AppLocalizations.of(context)!;
+    //  TRADUCCIÓN DEL MENÚ INFERIOR
+    // Ejemplo de cómo usar traducción:
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       body: _paginas[_selectedIndex],
@@ -165,13 +161,12 @@ class _MainScreenState extends State<MainScreen> {
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey[400],
         type: BottomNavigationBarType.fixed,
-        items: const [
-          // TODO: Reemplazar strings duros con l10n.home, l10n.search, etc. cuando actualices los .arb
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Inicio'),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Búsqueda'),
-          BottomNavigationBarItem(icon: Icon(Icons.message), label: 'Mensajes'),
-          BottomNavigationBarItem(icon: Icon(Icons.work), label: 'Trabajos'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: l10n.home),
+          BottomNavigationBarItem(icon: const Icon(Icons.search), label: l10n.searchPage),
+          BottomNavigationBarItem(icon: const Icon(Icons.message), label: l10n.messages),
+          BottomNavigationBarItem(icon: const Icon(Icons.work), label: l10n.jobs),
+          BottomNavigationBarItem(icon: const Icon(Icons.person), label: l10n.profileTitle),
         ],
       ),
     );

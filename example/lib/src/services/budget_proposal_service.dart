@@ -1,4 +1,4 @@
-import 'dart:async'; // Necesario para el Timer del botón deshacer
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_chat_types/flutter_chat_types.dart' as types;
 import 'package:intl/intl.dart';
@@ -25,6 +25,7 @@ class BudgetProposal {
   final bool isCompleted; 
   final DateTime? completedAt;
   final String? paymentMethod;
+  final String providerId;
 
   BudgetProposal({
     required this.id,
@@ -42,6 +43,7 @@ class BudgetProposal {
     this.isCompleted = false,
     this.completedAt,
     this.paymentMethod,
+    required this.providerId,
   });
 
   factory BudgetProposal.fromJson(Map<String, dynamic> json) => BudgetProposal(
@@ -64,6 +66,8 @@ class BudgetProposal {
       completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at']) : null,
   
       paymentMethod: json['payment_method'] as String?,
+
+      providerId: json['provider_id'],
   );
 
   Map<String, dynamic> toJson() => {
@@ -82,6 +86,8 @@ class BudgetProposal {
       'is_completed': isCompleted,
       'completed_at': completedAt?.toIso8601String(),
       'payment_method': paymentMethod,
+      'provider_id': providerId,
+    
     };
 }
 
@@ -95,12 +101,14 @@ class BudgetProposalService {
     required String receiverId,
     required double amount,
     required String description,
+    required String providerId,
   }) async {
     final currentUserId = _supabase.auth.currentUser!.id;
     final response = await _supabase.schema('jobs').from('budget_proposals').insert({
       'room_id': roomId,
       'sender_id': currentUserId,
       'receiver_id': receiverId,
+      'provider_id': providerId,
       'amount': amount,
       'description': description,
       'status': 'pending',
@@ -139,22 +147,24 @@ class BudgetProposalService {
   }
 
   static Future<BudgetProposal> createCounterProposal({
-    required String originalProposalId,
+    required BudgetProposal originalProposal,
     required String roomId,
     required String receiverId,
     required double amount,
     required String description,
   }) async {
     final currentUserId = _supabase.auth.currentUser!.id;
-    await _supabase.schema('jobs').from('budget_proposals').update({'status': 'countered'}).eq('id', originalProposalId);
+    await _supabase.schema('jobs').from('budget_proposals').update({'status': 'countered'}).eq('id', originalProposal.id);
+
     final response = await _supabase.schema('jobs').from('budget_proposals').insert({
       'room_id': roomId,
       'sender_id': currentUserId,
       'receiver_id': receiverId,
+      'provider_id': originalProposal.providerId, // Hereda el proveedor original
       'amount': amount,
       'description': description,
       'status': 'pending',
-      'counter_proposal_id': originalProposalId,
+      'counter_proposal_id': originalProposal.id,
     }).select().single();
     return BudgetProposal.fromJson(response);
   }
@@ -348,7 +358,7 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
 
     // 4. VALIDAR DISPONIBILIDAD EXACTA
     // Ahora enviamos la fecha con hora exacta para ver si choca con otro bloque
-    final isAvailable = await WorkerScheduleService.checkAvailability(widget.proposal.senderId, finalDateTime);
+    final isAvailable = await WorkerScheduleService.checkAvailability(widget.proposal.providerId, finalDateTime);
     
     if (!isAvailable) {
       if (mounted) {
@@ -453,9 +463,9 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
             const SizedBox(height: 8),
             Text(proposal.description),
           ],
-          
-          // --- MOSTRAR FECHAS (Solo si NO está rechazado) ---
-          if (proposal.status != 'rejected') ...[
+
+          // --- MOSTRAR FECHAS (Solo si NO está rechazado ni fallido) ---
+          if (proposal.status != 'rejected' && proposal.status != 'failed') ...[
             // CASO A: Fecha YA Agendada (Oficial)
             if (proposal.scheduledDate != null) ...[
               const SizedBox(height: 12),
@@ -468,58 +478,168 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
             ],
           ],
 
-          // --- ACCIONES PRINCIPALES ---
+          // --- ACCIONES PRINCIPALES Y ESTADOS FINALES ---
 
-          // CASO ESPECIAL: RECHAZADO (Corrección del Overflow)
           if (proposal.status == 'rejected')
-             Container(
-               width: double.infinity,
-               margin: const EdgeInsets.only(top: 16),
-               padding: const EdgeInsets.all(8),
-               decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
-               child: const Row(
-                 children: [
-                   Icon(Icons.cancel, color: Colors.red),
-                   SizedBox(width: 8),
-                   // EL FIX: Usamos Expanded para que el texto no se salga de la pantalla
-                   Expanded(
-                     child: Text(
-                       'Esta propuesta ha sido cerrada.', 
-                       style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                       overflow: TextOverflow.visible,
-                     ),
-                   ),
-                 ],
-               ),
-             )
-          else ...[
-             // 1. NEGOCIACIÓN PRECIO
-             if (proposal.status == 'pending' && !isMyProposal) ...[
-                const SizedBox(height: 16),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(8)),
+              child: const Row(
+                children: [
+                  Icon(Icons.cancel, color: Colors.red),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Esta propuesta ha sido cerrada.',
+                      style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.visible,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (proposal.status == 'paid')
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: Colors.blue[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue[300]!)
+              ),
+              child: Column(
+                children: [
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton(onPressed: () => widget.onAccept(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: const Text('Aceptar')),
-                      const SizedBox(width: 8),
-                      ElevatedButton(onPressed: () => widget.onReject(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), child: const Text('Rechazar')),
-                      const SizedBox(width: 8),
-                      ElevatedButton(onPressed: () => widget.onCounter(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white), child: const Text('Contraofertar')),
+                      Icon(Icons.verified, color: Colors.blue),
+                      SizedBox(width: 8),
+                      Text(
+                          'Servicio Pagado',
+                          style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 16)
+                      ),
                     ],
                   ),
-                ),
-             ],
 
-             // 2. FASE ACEPTADA (Agendamiento y Pagos)
-             if (proposal.status == 'accepted') 
-                _buildAcceptedActions(context, otherUserId),
-          ],
+                  // Usamos un FutureBuilder integrado directo en la UI
+                  FutureBuilder<Map<String, dynamic>>(
+                    future: Supabase.instance.client
+                        .schema('jobs')
+                        .from('payments')
+                        .select('mp_payment_id, updated_at')
+                        .eq('proposal_id', proposal.id)
+                        .single(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Padding(
+                          padding: EdgeInsets.only(top: 12),
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      }
+
+                      // Si falla la consulta (ej. RLS de Supabase) o no encuentra el ID
+                      if (snapshot.hasError || !snapshot.hasData || snapshot.data!['mp_payment_id'] == null) {
+                        return const Padding(
+                          padding: EdgeInsets.only(top: 8),
+                          child: Text('Pago asegurado vía Mercado Pago.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        );
+                      }
+
+                      // Extraemos los datos
+                      final paymentId = snapshot.data!['mp_payment_id'].toString();
+                      final date = DateTime.parse(snapshot.data!['updated_at']).toLocal();
+                      final dateStr = DateFormat("dd/MM/yyyy HH:mm").format(date);
+
+                      // Dibujamos el recibo integrado
+                      return Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.blue[100]!)
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Detalles de la transacción:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black54)),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('ID Operación:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                SelectableText(paymentId, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+                              ],
+                            ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Confirmación:', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                Text(dateStr, style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            )
+          else if (proposal.status == 'failed')
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(top: 16),
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: Colors.grey[200], borderRadius: BorderRadius.circular(8)),
+                child: const Row(
+                  children: [
+                    Icon(Icons.timer_off, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'El pago no se concretó a tiempo. Propuesta anulada.',
+                        style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else ...[
+                // 1. NEGOCIACIÓN PRECIO
+                if (proposal.status == 'pending' && !isMyProposal) ...[
+                  const SizedBox(height: 16),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ElevatedButton(onPressed: () => widget.onAccept(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white), child: const Text('Aceptar')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(onPressed: () => widget.onReject(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white), child: const Text('Rechazar')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(onPressed: () => widget.onCounter(proposal), style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white), child: const Text('Contraofertar')),
+                      ],
+                    ),
+                  ),
+                ],
+
+                // 2. FASE ACEPTADA (Agendamiento y Pagos)
+                if (proposal.status == 'accepted')
+                  _buildAcceptedActions(context, otherUserId),
+              ],
         ],
       ),
     );
   }
 
-  Widget _buildAcceptedActions(BuildContext context, String otherUserId) => Column(
+  Widget _buildAcceptedActions(BuildContext context, String otherUserId) {
+    // AQUÍ DEFINIMOS QUIÉN ES QUIÉN BASADOS EN LA BASE DE DATOS
+    final bool amITheProvider = widget.proposal.providerId == widget.currentUser.id;
+
+    return Column(
       children: [
         // A. Botón Deshacer (Ahora no oculta el resto de la interfaz)
         if (_canUndo)
@@ -541,8 +661,8 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
           ),
 
         // B. Flujo de Agendamiento
-        // SI SOY TRABAJADOR
-        if (widget.amITheWorker) ...[
+        // SI SOY EL PROVEEDOR (Reemplazamos widget.amITheWorker por amITheProvider)
+        if (amITheProvider) ...[
           if (widget.proposal.scheduledDate == null)
             SizedBox(
               width: double.infinity,
@@ -560,10 +680,10 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
             ),
         ],
 
-        // SI SOY CLIENTE (Y no soy trabajador)
-        if (!widget.amITheWorker) ...[
+        // SI SOY EL CLIENTE (Reemplazamos !widget.amITheWorker por !amITheProvider)
+        if (!amITheProvider) ...[
           // Si hay una propuesta de fecha pendiente, me toca aceptar/rechazar
-          if (widget.proposal.proposedDate != null && widget.proposal.scheduledDate == null) 
+          if (widget.proposal.proposedDate != null && widget.proposal.scheduledDate == null)
             Row(
               children: [
                 Expanded(
@@ -584,8 +704,8 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
               ],
             )
           else if (widget.proposal.scheduledDate == null)
-             const Text('Esperando que el trabajador proponga fecha...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
-             
+            const Text('Esperando que el trabajador proponga fecha...', style: TextStyle(fontStyle: FontStyle.italic, color: Colors.grey)),
+
           const SizedBox(height: 12),
           // Selector de Pago (Siempre visible para el cliente)
           PaymentMethodSelector(
@@ -593,11 +713,13 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
             amount: widget.proposal.amount,
             description: widget.proposal.description,
             targetWorkerId: otherUserId,
+            payerId: widget.currentUser.id,
           ),
         ],
       ],
     );
-  
+  }
+
   Widget _buildDateInfo(DateTime date, String label, Color color, IconData icon) => Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -629,7 +751,9 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
     switch (status) {
       case 'pending': return Colors.orange;
       case 'accepted': return Colors.green;
+      case 'paid': return Colors.blueAccent;
       case 'rejected': return Colors.red;
+      case 'failed': return Colors.grey;
       case 'countered': return Colors.purple;
       default: return Colors.grey;
     }
@@ -639,7 +763,9 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
     switch (status) {
       case 'pending': return 'Pendiente';
       case 'accepted': return 'Aceptado';
+      case 'paid': return 'Pagado';
       case 'rejected': return 'Rechazado';
+      case 'failed': return 'Anulado';
       case 'countered': return 'Contraofertado';
       default: return 'Desconocido';
     }
@@ -648,17 +774,19 @@ class _BudgetProposalMessageState extends State<BudgetProposalMessage> {
 
 // Widget de pago
 class PaymentMethodSelector extends StatefulWidget {
-  final BudgetProposal proposal; // <--- AÑADIDO
+  final BudgetProposal proposal;
   final double amount;
   final String description;
   final String targetWorkerId;
+  final String payerId;
 
   const PaymentMethodSelector({
     super.key, 
-    required this.proposal, // <--- AÑADIDO
+    required this.proposal,
     required this.amount, 
     required this.description, 
     required this.targetWorkerId,
+    required this.payerId,
   });
 
   @override
@@ -775,7 +903,7 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
               SizedBox(width: 8),
               Flexible(
                 child: Text(
-                  'Pago Digital (Mercado Pago)', 
+                  'Pago Digital (Mercado Pago)',
                   style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                   textAlign: TextAlign.center,
                 ),
@@ -783,26 +911,18 @@ class _PaymentMethodSelectorState extends State<PaymentMethodSelector> {
             ],
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.blue[600],
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Text(
-              '¡ESTARÁ DISPONIBLE PRONTO!',
-              style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-            ),
+
+          // Llamam al botón real de Mercado Pago
+          MercadoPagoButton(
+            monto: widget.amount,
+            descripcion: widget.description,
+            workerId: widget.proposal.providerId, // Usamos el providerId que blindamos antes
+            proposalId: widget.proposal.id,
+            payerId: widget.payerId,
           ),
+
           const SizedBox(height: 8),
-          const Text(
-            'Estamos trabajando en la integración segura con Mercado Pago.', 
-            style: TextStyle(fontSize: 12, color: Colors.black87),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 4),
           TextButton(
-            // --- PASO 4.3: Usar la nueva función para resetear ---
             onPressed: () => _handleSelectMethod(null),
             child: const Text('Elegir otro método', style: TextStyle(fontSize: 12)),
           ),

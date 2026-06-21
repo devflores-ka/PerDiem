@@ -16,6 +16,7 @@ import '../../utils/ofertas/detalle_oferta.dart';
 import '../../utils/tarjetas.dart';
 import '../../widgets/rating_display.dart';
 import '../auth/auth.dart';
+import '../auth/mercado_pago_onboarding.dart';
 import '../verificacion/verificacion_screen.dart';
 import 'formulario_trabajo.dart';
 
@@ -61,6 +62,9 @@ class _TrabajoPageState extends State<TrabajoPage> {
   String? _activeCategory;
   String? _activeOficio;
 
+  bool _mpLinked = false;
+  bool _hasShownMPPrompt = false;
+
   @override
   void initState() {
     super.initState();
@@ -71,10 +75,11 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
     _verificarSesion();
 
-    _initializeFromLocationManager();
+    // Utilizamos Future.microtask para asegurar que el contexto esté disponible para l10n
+    Future.microtask(() => _initializeFromLocationManager());
   }
 
-  // ✅ NUEVO: Configurar listener para cambios de ubicación
+  // Configurar listener para cambios de ubicación
   void _setupLocationListener() {
     _locationManager.addListener(() {
       if (_locationManager.currentPosition != null) {
@@ -92,8 +97,9 @@ class _TrabajoPageState extends State<TrabajoPage> {
     });
   }
 
-  // ✅ NUEVO: Inicializar desde LocationManager en lugar de getCurrentLocation
+  // Inicializar desde LocationManager en lugar de getCurrentLocation
   Future<void> _initializeFromLocationManager() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Intentar usar la ubicación ya guardada en LocationManager
       if (_locationManager.currentPosition != null) {
@@ -119,7 +125,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
       }
 
       final success = await _locationManager.initializeLocation(
-            (position) => 'Sector determinado', forceUpdate: true, // Puedes personalizar esto
+            (position) => l10n.determinedSector, forceUpdate: true,
       );
 
       if (success && _locationManager.currentPosition != null) {
@@ -147,6 +153,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   /// Get the user's current location
   Future<void> _getCurrentLocation() async {
+    final l10n = AppLocalizations.of(context)!;
     try {
       // Check location permissions
       var permission = await Geolocator.checkPermission();
@@ -155,10 +162,10 @@ class _TrabajoPageState extends State<TrabajoPage> {
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
           if (permission == LocationPermission.denied) {
-            if (mounted) { // ✅ Agregar verificación
+            if (mounted) {
               setState(() {
                 _locationError = true;
-                _locationErrorMessage = 'Permisos de locación denegados';
+                _locationErrorMessage = l10n.locationPermissionsDenied;
               });
             }
             return;
@@ -167,10 +174,10 @@ class _TrabajoPageState extends State<TrabajoPage> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        if (mounted) { // ✅ Agregar verificación
+        if (mounted) {
           setState(() {
             _locationError = true;
-            _locationErrorMessage = 'Permisos de locación denegados permanentemente';
+            _locationErrorMessage = l10n.locationPermissionsDeniedPermanently;
           });
         }
         return;
@@ -181,7 +188,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      if (mounted) { // ✅ Agregar verificación
+      if (mounted) {
         setState(() {
           _userLatitude = position.latitude;
           _userLongitude = position.longitude;
@@ -191,10 +198,10 @@ class _TrabajoPageState extends State<TrabajoPage> {
       // Ahora tenemos la ubicación, cargar las ofertas
       await _cargarTarjetas();
     } catch (e) {
-      if (mounted) { // ✅ Agregar verificación
+      if (mounted) {
         setState(() {
           _locationError = true;
-          _locationErrorMessage = 'Error obteniendo ubicación: $e';
+          _locationErrorMessage = '${l10n.errorGettingLocation}: $e';
           _cargando = false;
         });
       }
@@ -205,45 +212,170 @@ class _TrabajoPageState extends State<TrabajoPage> {
   }
 
   /// Verifica si hay un usuario autenticado
-  void _verificarSesion() {
-    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) async { // ✅ Asignar la subscription
-      final session = data.session;
-      
-      if (mounted) { // ✅ Verificar que el widget esté montado
+  Future<void> _cargarPerfilUsuario(User usuario) async {
+    try {
+      // Nota: Verifica que la tabla 'users' realmente esté en el schema 'chats' y no en 'public'.
+      final doc = await supabase
+          .schema('chats')
+          .from('users')
+          .select('role, mp_linked')
+          .eq('id', usuario.id)
+          .maybeSingle();
+
+      if (mounted && doc != null) {
         setState(() {
-          _user = data.session?.user;
+          _userRole = doc['role'] ?? 'user';
+          _mpLinked = doc['mp_linked'] ?? false;
+        });
+
+        // Disparar el bottom sheet si corresponde
+        if (_userRole == 'worker' && !_mpLinked && !_hasShownMPPrompt) {
+          _hasShownMPPrompt = true;
+          Future.delayed(const Duration(seconds: 1), () {
+            if (mounted) _mostrarAvisoMercadoPago();
+          });
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) print('Error obteniendo perfil: $e');
+    }
+  }
+
+  void _verificarSesion() {
+    // 1. Revisar sesión en caché de inmediato (Soluciona el botón oculto en el hot restart)
+    final currentUser = supabase.auth.currentUser;
+    if (currentUser != null) {
+      setState(() => _user = currentUser);
+      _cargarPerfilUsuario(currentUser);
+    }
+
+    // 2. Mantener el listener para capturar cuando hacen login/logout
+    _authSubscription = supabase.auth.onAuthStateChange.listen((data) async {
+      final session = data.session;
+
+      if (mounted) {
+        setState(() {
+          _user = session?.user;
         });
       }
 
-      // 2. Si hay usuario, consultar su ROL en la base de datos pública
       if (session?.user != null) {
-        try {
-          final doc = await supabase
-              .schema('chats')
-              .from('users')
-              .select('role')
-              .eq('id', session!.user.id)
-              .maybeSingle();
-
-          if (mounted && doc != null) {
-            setState(() {
-              _userRole = doc['role'] ?? 'user';
-            });
-            
-            // Debug para que veas qué rol detectó
-            if (kDebugMode) print('👤 Rol detectado: $_userRole');
-          }
-        } catch (e) {
-          if (kDebugMode) {
-            print('Error obteniendo rol: $e');
-          }
+        // Evitamos doble recarga si ya lo cargamos en el paso 1
+        if (currentUser?.id != session!.user.id) {
+          await _cargarPerfilUsuario(session!.user);
         }
       } else {
-        // Si no hay sesión, asumimos rol de usuario normal (o invitado)
         if (mounted) setState(() => _userRole = 'user');
       }
-
     });
+  }
+
+  void _mostrarAvisoMercadoPago() {
+    final l10n = AppLocalizations.of(context)!;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 50,
+              height: 5,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Icon(Icons.account_balance_wallet, size: 60, color: Colors.blue),
+            const SizedBox(height: 16),
+            Text(
+              l10n.receivePaymentsInstantly,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.mercadoPagoPromptDescription,
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Cierra el popup
+                  // Navegamos a la pantalla de vinculación
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MercadoPagoOnboardingScreen()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF009EE3),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(l10n.linkNow, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(l10n.doItLater, style: const TextStyle(color: Colors.grey)),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _mostrarAlertaEfectivo() {
+    final l10n = AppLocalizations.of(context)!;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+            children: [
+              const Icon(Icons.money_off, color: Colors.orange),
+              const SizedBox(width: 10),
+              Expanded(child: Text(l10n.cashOnly, style: const TextStyle(fontSize: 18))),
+            ]
+        ),
+        content: Text(l10n.cashOnlyDescription),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              // Llevamos al usuario a la pantalla de vinculación de MP
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MercadoPagoOnboardingScreen()),
+              );
+            },
+            child: Text(l10n.linkMP, style: const TextStyle(color: Colors.blue)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _navegarAlFormulario(); // Acepta las consecuencias y publica
+            },
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white
+            ),
+            child: Text(l10n.publishInCash),
+          ),
+        ],
+      ),
+    );
   }
 
   // Actualizar dispose para limpiar el listener
@@ -295,13 +427,13 @@ class _TrabajoPageState extends State<TrabajoPage> {
         final user = oferta['user'] ?? {};
 
         tarjetas.add(TarjetaServicio(
-          imagenUrl: oferta['image_url'] ?? 'https://placehold.co/150',
+          imagenUrl: oferta['image_url'] ?? 'https://placehold.co/150/png',
           descripcion: oferta['description'] ?? '',
           presupuesto: (oferta['amount'] is double)
               ? oferta['amount']
               : (oferta['amount'] ?? 0).toDouble(),
           nombreUsuario: '${user['firstName'] ?? ''} ${user['lastName'] ?? ''}',
-          avatarUrl: user['imageUrl'] ?? 'https://placehold.co/40',
+          avatarUrl: user['imageUrl'] ?? 'https://placehold.co/40/png',
           calificacion: 4.9,
           numResenas: '2.5k',
           esFavorito: false,
@@ -339,7 +471,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   // Función auxiliar para verificar si el usuario puede operar
   Future<void> _verificarIdentidadYNavegar() async {
-    // 1. Si no está logueado, mandar a Login (Lógica actual)
+    final l10n = AppLocalizations.of(context)!;
     if (_user == null) {
       await Navigator.push(
         context,
@@ -348,7 +480,6 @@ class _TrabajoPageState extends State<TrabajoPage> {
       return;
     }
 
-    // Mostrar carga rápida
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -356,61 +487,70 @@ class _TrabajoPageState extends State<TrabajoPage> {
     );
 
     try {
-      // 2. Consultar el estado real en la base de datos
+      // Traemos también mp_linked para tener el estado más fresco
       final data = await supabase
           .schema('chats')
           .from('users')
-          .select('verification_status')
+          .select('verification_status, mp_linked')
           .eq('id', _user!.id)
           .single();
 
-      // Cerrar loading
       if (mounted) Navigator.pop(context);
 
       final status = data['verification_status'] as String? ?? 'none';
+      final isMpLinked = data['mp_linked'] as bool? ?? false;
 
-      // 3. Evaluar el estado
+      // Actualizamos la variable global por si la vincularon recientemente
+      if (mounted) setState(() => _mpLinked = isMpLinked);
+
       if (status == 'verified') {
-        // ✅ APROBADO: Dejar pasar al formulario
-        if (mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const FormularioTrabajo()),
-          ).then((_) => _cargarTarjetas());
+        // ✅ IDENTIDAD APROBADA: Evaluamos si tiene Mercado Pago
+        if (!isMpLinked) {
+          _mostrarAlertaEfectivo();
+        } else {
+          _navegarAlFormulario();
         }
       } else {
-        // ⛔ BLOQUEADO: Mostrar alerta según el estado
+        // ⛔ IDENTIDAD BLOQUEADA
         _mostrarAlertaVerificacion(status);
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); // Cerrar loading si falla
-      if (kDebugMode) print('Error verificando usuario: $e');
-      // En caso de error de red, podrías decidir dejar pasar o bloquear. 
-      // Por seguridad, mejor mostrar error.
+      if (mounted) Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error verificando cuenta: $e')),
+        SnackBar(content: Text('${l10n.errorVerifyingAccount} $e')),
       );
+    }
+  }
+
+  // Extraemos la navegación para reutilizarla
+  void _navegarAlFormulario() {
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const FormularioTrabajo()),
+      ).then((_) => _cargarTarjetas());
     }
   }
 
   // Popup bonito para explicar por qué no puede pasar
   void _mostrarAlertaVerificacion(String status) {
-    var titulo = 'Verificación Requerida';
-    var mensaje = 'Para seguridad de la comunidad, necesitamos validar tu identidad antes de publicar trabajos.';
-    var btnTexto = 'Verificar Ahora';
+    final l10n = AppLocalizations.of(context)!;
+    var titulo = l10n.verificationRequired;
+    var mensaje = l10n.verificationRequiredDescription;
+    var btnTexto = l10n.verifyNow;
     var icono = Icons.gpp_maybe;
     Color color = Colors.orange;
 
     if (status == 'pending') {
-      titulo = 'Verificación en Proceso';
-      mensaje = 'Tus documentos están siendo revisados por nuestro equipo. Te avisaremos pronto.';
-      btnTexto = 'Entendido';
+      titulo = l10n.verificationInProgress;
+      mensaje = l10n.verificationInProgressDescription;
+      btnTexto = l10n.understood;
       icono = Icons.hourglass_top;
       color = Colors.blue;
     } else if (status == 'rejected') {
-      titulo = 'Solicitud Rechazada';
-      mensaje = 'Hubo un problema con tus documentos. Por favor, intenta subirlos nuevamente.';
-      btnTexto = 'Intentar de nuevo';
+      titulo = l10n.requestRejected;
+      mensaje = l10n.requestRejectedDescription;
+      btnTexto = l10n.tryAgain;
       icono = Icons.cancel;
       color = Colors.red;
     }
@@ -423,7 +563,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar', style: TextStyle(color: Colors.grey)),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -449,12 +589,13 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   // Método para forzar actualización de ubicación
   Future<void> _refreshLocation() async {
+    final l10n = AppLocalizations.of(context)!;
     setState(() => _cargando = true);
 
     try {
       // Forzar actualización de ubicación en LocationManager
       final success = await _locationManager.initializeLocation(
-            (position) => 'Sector determinado',
+            (position) => l10n.determinedSector,
         forceUpdate: true, // Si el LocationManager acepta este parámetro
       );
 
@@ -475,7 +616,7 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
       setState(() {
         _locationError = true;
-        _locationErrorMessage = 'Error actualizando ubicación: $e';
+        _locationErrorMessage = '${l10n.errorUpdatingLocation} $e';
         _cargando = false;
       });
     }
@@ -486,182 +627,182 @@ class _TrabajoPageState extends State<TrabajoPage> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-    backgroundColor: Colors.white,
-    appBar: AppBar(
-      title: const Text(
-        'PerDiem',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
-          
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          'PerDiem',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+
+          ),
         ),
-      ),
-      centerTitle: false, // Cambié esto de true a false
-      elevation: 2,
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.search, color: Colors.black, size: 28),
-          tooltip: 'Buscar servicio',
-          onPressed: () async {
-            // 1. Navegar a la pantalla de búsqueda y esperar el resultado
-            final result = await Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SearchScreen()),
-            );
-
-            // 2. Si el usuario buscó algo (no volvió con atrás sin hacer nada)
-            if (result != null && mounted) {
-              final query = result['query'] as String?;
-              final categoryMap = result['category'] as Map<String, dynamic>?;
-              final oficioMap = result['oficio'] as Map<String, dynamic>?;
-              
-              if (kDebugMode) {
-                print('🔎 Filtrando por: Texto="$query", Cat="${categoryMap?['name']}", Oficio="${oficioMap?['name']}"');
-              }
-
-              // 3. Recargar las tarjetas con los filtros
-              _cargarTarjetas(
-                query: query,
-                category: categoryMap?['name'], // Pasamos el nombre de la categoría
-                oficioName: oficioMap?['name'], // Pasamos el nombre del oficio
+        centerTitle: false, // Cambié esto de true a false
+        elevation: 2,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black, size: 28),
+            tooltip: l10n.searchService,
+            onPressed: () async {
+              // 1. Navegar a la pantalla de búsqueda y esperar el resultado
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SearchScreen()),
               );
-            }
-          },
-        ),
-      ],
-    ),
-    body: RefreshIndicator(
-      onRefresh: _refreshLocation,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        child: _cargando
-            ? const Center(child: CircularProgressIndicator())
-            : _locationError
-            ? Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(_locationErrorMessage),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _getCurrentLocation,
-                child: const Text('Reintentar'),
+
+              // 2. Si el usuario buscó algo (no volvió con atrás sin hacer nada)
+              if (result != null && mounted) {
+                final query = result['query'] as String?;
+                final categoryMap = result['category'] as Map<String, dynamic>?;
+                final oficioMap = result['oficio'] as Map<String, dynamic>?;
+
+                if (kDebugMode) {
+                  print('🔎 Filtrando por: Texto="$query", Cat="${categoryMap?['name']}", Oficio="${oficioMap?['name']}"');
+                }
+
+                // 3. Recargar las tarjetas con los filtros
+                _cargarTarjetas(
+                  query: query,
+                  category: categoryMap?['name'], // Pasamos el nombre de la categoría
+                  oficioName: oficioMap?['name'], // Pasamos el nombre del oficio
+                );
+              }
+            },
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _refreshLocation,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          child: _cargando
+              ? const Center(child: CircularProgressIndicator())
+              : _locationError
+              ? Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(_locationErrorMessage),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _getCurrentLocation,
+                  child: Text(l10n.retry),
+                ),
+              ],
+            ),
+          )
+              : CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(), // Permite refresh aun vacío
+            slivers: [
+              // Header con subtítulo
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 15, 10, 10),
+                  child: Text(
+                    l10n.availableServices,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              ),
+
+              // BANNER DE FILTROS (Siempre visible si hay filtros activos)
+              _buildActiveFiltersBanner(l10n),
+
+              // Banner de sponsor inicial (SOLO UNO, borré el duplicado)
+              SliverToBoxAdapter(
+                child: _buildSponsorBanner(l10n),
+              ),
+
+              // Lógica de lista o mensaje de vacío
+              if (_tarjetas.isEmpty)
+                SliverFillRemaining(
+                  hasScrollBody: false,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
+                        const SizedBox(height: 16),
+                        Text(
+                          l10n.noOffersWithFilters,
+                          style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                        const SizedBox(height: 8),
+                        // Botón extra para limpiar filtros si está vacío
+                        if (_activeCategory != null || _activeQuery != null)
+                          TextButton.icon(
+                            onPressed: () {
+                              _cargarTarjetas(); // Recargar sin filtros
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(l10n.filtersCleared)),
+                              );
+                            },
+                            icon: const Icon(Icons.refresh),
+                            label: Text(l10n.viewAllOffers),
+                          ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+              // Grid de tarjetas intercalado con banners de sponsor
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                      // Cada 4 tarjetas, insertar un banner de sponsor
+                      if (index > 0 && index % 4 == 0) {
+                        return Column(
+                          children: [
+                            _buildSponsorBanner(l10n),
+                            _buildTarjetaRow(index),
+                          ],
+                        );
+                      }
+
+                      if (index >= _tarjetas.length) return null;
+
+                      // Cada 2 tarjetas, crear una fila
+                      if (index % 2 == 0) {
+                        return _buildTarjetaRow(index);
+                      }
+
+                      return const SizedBox.shrink();
+                    },
+                    childCount: _tarjetas.length,
+                  ),
+                ),
+
+              // Espacio final para el FAB
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 80),
               ),
             ],
           ),
-        )
-            : CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), // Permite refresh aun vacío
-          slivers: [
-            // Header con subtítulo
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(10, 15, 10, 10),
-                child: Text(
-                  l10n.availableServices,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-            ),
-
-            // BANNER DE FILTROS (Siempre visible si hay filtros activos)
-            _buildActiveFiltersBanner(),
-
-            // Banner de sponsor inicial (SOLO UNO, borré el duplicado)
-            SliverToBoxAdapter(
-              child: _buildSponsorBanner(),
-            ),
-
-            // Lógica de lista o mensaje de vacío
-            if (_tarjetas.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.search_off, size: 60, color: Colors.grey[400]),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No hay ofertas con estos filtros',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
-                      const SizedBox(height: 8),
-                      // Botón extra para limpiar filtros si está vacío
-                      if (_activeCategory != null || _activeQuery != null)
-                        TextButton.icon(
-                          onPressed: () {
-                             _cargarTarjetas(); // Recargar sin filtros
-                             ScaffoldMessenger.of(context).showSnackBar(
-                               const SnackBar(content: Text('Filtros borrados')),
-                             );
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Ver todas las ofertas'),
-                        ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              // Grid de tarjetas intercalado con banners de sponsor
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                    // Cada 4 tarjetas, insertar un banner de sponsor
-                    if (index > 0 && index % 4 == 0) {
-                      return Column(
-                        children: [
-                          _buildSponsorBanner(),
-                          _buildTarjetaRow(index),
-                        ],
-                      );
-                    }
-
-                    if (index >= _tarjetas.length) return null;
-
-                    // Cada 2 tarjetas, crear una fila
-                    if (index % 2 == 0) {
-                      return _buildTarjetaRow(index);
-                    }
-
-                    return const SizedBox.shrink();
-                  },
-                  childCount: _tarjetas.length,
-                ),
-              ),
-
-            // Espacio final para el FAB
-            const SliverToBoxAdapter(
-              child: SizedBox(height: 80),
-            ),
-          ],
         ),
       ),
-    ),
-    floatingActionButton: _userRole == 'worker' 
-      ? FloatingActionButton(
-          heroTag: 'btn_flotante_trab',
-          onPressed: _manejarBotonFlotante,
-          tooltip: 'Publicar servicio',
-          backgroundColor: Colors.blue,
-          child: const Icon(Icons.add, color: Colors.white),
-        )
-      : null, // null oculta el botón
-    floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-  );
-}
+      floatingActionButton: _userRole == 'worker'
+          ? FloatingActionButton(
+        heroTag: 'btn_flotante_trab',
+        onPressed: _manejarBotonFlotante,
+        tooltip: l10n.publishService,
+        backgroundColor: Colors.blue,
+        child: const Icon(Icons.add, color: Colors.white),
+      )
+          : null, // null oculta el botón
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
 
 // WIDGET Banner de Filtros Activos
-  Widget _buildActiveFiltersBanner() {
+  Widget _buildActiveFiltersBanner(AppLocalizations l10n) {
     // Solo mostrar si hay algún filtro activo
     final hasFilter = (_activeQuery != null && _activeQuery!.isNotEmpty) ||
-                      (_activeCategory != null && _activeCategory!.isNotEmpty) ||
-                      (_activeOficio != null && _activeOficio!.isNotEmpty);
+        (_activeCategory != null && _activeCategory!.isNotEmpty) ||
+        (_activeOficio != null && _activeOficio!.isNotEmpty);
 
     if (!hasFilter) return const SliverToBoxAdapter(child: SizedBox.shrink());
 
@@ -694,14 +835,14 @@ class _TrabajoPageState extends State<TrabajoPage> {
               child: const Icon(Icons.filter_alt, color: Colors.blue, size: 20),
             ),
             const SizedBox(width: 12),
-            
+
             // Texto descriptivo de los filtros
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Resultados filtrados por:',
+                    l10n.resultsFilteredBy,
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade600,
@@ -725,22 +866,22 @@ class _TrabajoPageState extends State<TrabajoPage> {
                 ],
               ),
             ),
-            
+
             // Botón de BORRAR FILTROS
             IconButton(
               onPressed: () {
                 // ✅ Volver a cargar sin parámetros (limpia todo)
-                _cargarTarjetas(); 
-                
+                _cargarTarjetas();
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Filtros borrados. Mostrando todo lo cercano.'),
-                    duration: Duration(seconds: 2),
+                  SnackBar(
+                    content: Text(l10n.filtersClearedShowingAll),
+                    duration: const Duration(seconds: 2),
                   ),
                 );
               },
               icon: const Icon(Icons.close, color: Colors.red),
-              tooltip: 'Borrar filtros',
+              tooltip: l10n.clearFilters,
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white,
                 padding: const EdgeInsets.all(8),
@@ -754,48 +895,48 @@ class _TrabajoPageState extends State<TrabajoPage> {
 
   // Helper pequeño para los chips de colores
   Widget _buildFilterChip(IconData icon, String label, MaterialColor color) => Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.shade50,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.shade200),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color.shade700),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: color.shade800,
-            ),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: color.shade50,
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.shade200),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color.shade700),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color.shade800,
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
 
 // Método para construir una fila con 2 tarjetas
   Widget _buildTarjetaRow(int startIndex) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          // Primera tarjeta
-          Expanded(
-            child: _buildCompactTarjeta(startIndex),
-          ),
-          const SizedBox(width: 8),
-          // Segunda tarjeta (si existe)
-          Expanded(
-            child: startIndex + 1 < _tarjetas.length
-                ? _buildCompactTarjeta(startIndex + 1)
-                : const SizedBox.shrink(),
-          ),
-        ],
-      ),
-    );
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        // Primera tarjeta
+        Expanded(
+          child: _buildCompactTarjeta(startIndex),
+        ),
+        const SizedBox(width: 8),
+        // Segunda tarjeta (si existe)
+        Expanded(
+          child: startIndex + 1 < _tarjetas.length
+              ? _buildCompactTarjeta(startIndex + 1)
+              : const SizedBox.shrink(),
+        ),
+      ],
+    ),
+  );
 
 // Método para construir tarjeta compacta
   Widget _buildCompactTarjeta(int index) {
@@ -925,107 +1066,107 @@ class _TrabajoPageState extends State<TrabajoPage> {
   }
 
 // Método para construir banner de sponsor
-  Widget _buildSponsorBanner() => Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      height: 50,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.grey[200], // Gris ligeramente más oscuro que el fondo
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Center(
-        child: Text(
-          'SPONSOR',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.black54,
-            letterSpacing: 1.2,
-          ),
+  Widget _buildSponsorBanner(AppLocalizations l10n) => Container(
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    height: 50,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: Colors.grey[200], // Gris ligeramente más oscuro que el fondo
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Center(
+      child: Text(
+        l10n.sponsor,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Colors.black54,
+          letterSpacing: 1.2,
         ),
       ),
-    );
+    ),
+  );
 
 // Método para construir banner publicitario
-  Widget _buildAdBanner() => Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue[200]!, width: 1),
-      ),
-      child: Row(
-        children: [
-          // Icono o imagen del anuncio
-          Container(
-            width: 60,
-            height: 60,
-            margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.blue[100],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.campaign,
-              color: Colors.blue,
-              size: 30,
-            ),
+  Widget _buildAdBanner(AppLocalizations l10n) => Container(
+    margin: const EdgeInsets.symmetric(vertical: 8),
+    height: 80,
+    decoration: BoxDecoration(
+      color: Colors.blue[50],
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.blue[200]!, width: 1),
+    ),
+    child: Row(
+      children: [
+        // Icono o imagen del anuncio
+        Container(
+          width: 60,
+          height: 60,
+          margin: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.blue[100],
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: const Icon(
+            Icons.campaign,
+            color: Colors.blue,
+            size: 30,
+          ),
+        ),
 
-          // Contenido del anuncio
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    '¡Promociona tu servicio!',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                      color: Colors.black,
-                    ),
+        // Contenido del anuncio
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  l10n.promoteYourService,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: Colors.black,
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Llega a más clientes con nuestros planes premium',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey[600],
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.reachMoreCustomers,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey[600],
                   ),
-                ],
-              ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
+        ),
 
-          // Botón CTA
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: ElevatedButton(
-              onPressed: () {
-                // Acción del anuncio
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Redirigiendo a planes premium...')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                minimumSize: const Size(60, 30),
-              ),
-              child: const Text(
-                'Ver más',
-                style: TextStyle(fontSize: 10, color: Colors.white),
-              ),
+        // Botón CTA
+        Padding(
+          padding: const EdgeInsets.only(right: 10),
+          child: ElevatedButton(
+            onPressed: () {
+              // Acción del anuncio
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(l10n.redirectingToPremium)),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              minimumSize: const Size(60, 30),
+            ),
+            child: Text(
+              l10n.seeMore,
+              style: const TextStyle(fontSize: 10, color: Colors.white),
             ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  );
 }

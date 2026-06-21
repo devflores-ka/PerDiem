@@ -98,6 +98,18 @@ abstract class AppLocalizations {
     Locale('es')
   ];
 
+  /// No description provided for @home.
+  ///
+  /// In es, this message translates to:
+  /// **'Inicio'**
+  String get home;
+
+  /// No description provided for @searchPage.
+  ///
+  /// In es, this message translates to:
+  /// **'Búsqueda'**
+  String get searchPage;
+
   /// No description provided for @availableServices.
   ///
   /// In es, this message translates to:
@@ -1285,6 +1297,348 @@ abstract class AppLocalizations {
   /// In es, this message translates to:
   /// **'Contraofertadas'**
   String get countered;
+
+  /// No description provided for @determinedSector.
+  ///
+  /// In es, this message translates to:
+  /// **'Sector determinado'**
+  String get determinedSector;
+
+  /// No description provided for @locationPermissionsDenied.
+  ///
+  /// In es, this message translates to:
+  /// **'Permisos de locación denegados'**
+  String get locationPermissionsDenied;
+
+  /// No description provided for @locationPermissionsDeniedPermanently.
+  ///
+  /// In es, this message translates to:
+  /// **'Permisos de locación denegados permanentemente'**
+  String get locationPermissionsDeniedPermanently;
+
+  /// No description provided for @errorGettingLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Error obteniendo ubicación'**
+  String get errorGettingLocation;
+
+  /// No description provided for @receivePaymentsInstantly.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Recibe tus pagos al instante!'**
+  String get receivePaymentsInstantly;
+
+  /// No description provided for @mercadoPagoPromptDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Para empezar a recibir pagos digitales de tus clientes, necesitas vincular tu cuenta de Mercado Pago a Perdiem.'**
+  String get mercadoPagoPromptDescription;
+
+  /// No description provided for @linkNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Vincular ahora'**
+  String get linkNow;
+
+  /// No description provided for @doItLater.
+  ///
+  /// In es, this message translates to:
+  /// **'Hacerlo más tarde'**
+  String get doItLater;
+
+  /// No description provided for @cashOnly.
+  ///
+  /// In es, this message translates to:
+  /// **'Solo cobro en efectivo'**
+  String get cashOnly;
+
+  /// No description provided for @cashOnlyDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'No has vinculado tu cuenta de Mercado Pago. Si decides continuar, tu servicio se publicará pero tendrás que acordar el pago en efectivo directamente con tus clientes.\n\n¿Qué deseas hacer?'**
+  String get cashOnlyDescription;
+
+  /// No description provided for @linkMP.
+  ///
+  /// In es, this message translates to:
+  /// **'Vincular MP'**
+  String get linkMP;
+
+  /// No description provided for @publishInCash.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar en efectivo'**
+  String get publishInCash;
+
+  /// No description provided for @errorVerifyingAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Error verificando cuenta'**
+  String get errorVerifyingAccount;
+
+  /// No description provided for @verificationRequired.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificación Requerida'**
+  String get verificationRequired;
+
+  /// No description provided for @verificationRequiredDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Para seguridad de la comunidad, necesitamos validar tu identidad antes de publicar trabajos.'**
+  String get verificationRequiredDescription;
+
+  /// No description provided for @verifyNow.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificar Ahora'**
+  String get verifyNow;
+
+  /// No description provided for @verificationInProgress.
+  ///
+  /// In es, this message translates to:
+  /// **'Verificación en Proceso'**
+  String get verificationInProgress;
+
+  /// No description provided for @verificationInProgressDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Tus documentos están siendo revisados por nuestro equipo. Te avisaremos pronto.'**
+  String get verificationInProgressDescription;
+
+  /// No description provided for @understood.
+  ///
+  /// In es, this message translates to:
+  /// **'Entendido'**
+  String get understood;
+
+  /// No description provided for @requestRejected.
+  ///
+  /// In es, this message translates to:
+  /// **'Solicitud Rechazada'**
+  String get requestRejected;
+
+  /// No description provided for @requestRejectedDescription.
+  ///
+  /// In es, this message translates to:
+  /// **'Hubo un problema con tus documentos. Por favor, intenta subirlos nuevamente.'**
+  String get requestRejectedDescription;
+
+  /// No description provided for @tryAgain.
+  ///
+  /// In es, this message translates to:
+  /// **'Intentar de nuevo'**
+  String get tryAgain;
+
+  /// No description provided for @errorUpdatingLocation.
+  ///
+  /// In es, this message translates to:
+  /// **'Error actualizando ubicación'**
+  String get errorUpdatingLocation;
+
+  /// No description provided for @searchService.
+  ///
+  /// In es, this message translates to:
+  /// **'Buscar servicio'**
+  String get searchService;
+
+  /// No description provided for @retry.
+  ///
+  /// In es, this message translates to:
+  /// **'Reintentar'**
+  String get retry;
+
+  /// No description provided for @noOffersWithFilters.
+  ///
+  /// In es, this message translates to:
+  /// **'No hay ofertas con estos filtros'**
+  String get noOffersWithFilters;
+
+  /// No description provided for @viewAllOffers.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver todas las ofertas'**
+  String get viewAllOffers;
+
+  /// No description provided for @filtersCleared.
+  ///
+  /// In es, this message translates to:
+  /// **'Filtros borrados'**
+  String get filtersCleared;
+
+  /// No description provided for @publishService.
+  ///
+  /// In es, this message translates to:
+  /// **'Publicar servicio'**
+  String get publishService;
+
+  /// No description provided for @resultsFilteredBy.
+  ///
+  /// In es, this message translates to:
+  /// **'Resultados filtrados por:'**
+  String get resultsFilteredBy;
+
+  /// No description provided for @filtersClearedShowingAll.
+  ///
+  /// In es, this message translates to:
+  /// **'Filtros borrados. Mostrando todo lo cercano.'**
+  String get filtersClearedShowingAll;
+
+  /// No description provided for @clearFilters.
+  ///
+  /// In es, this message translates to:
+  /// **'Borrar filtros'**
+  String get clearFilters;
+
+  /// No description provided for @sponsor.
+  ///
+  /// In es, this message translates to:
+  /// **'SPONSOR'**
+  String get sponsor;
+
+  /// No description provided for @promoteYourService.
+  ///
+  /// In es, this message translates to:
+  /// **'¡Promociona tu servicio!'**
+  String get promoteYourService;
+
+  /// No description provided for @reachMoreCustomers.
+  ///
+  /// In es, this message translates to:
+  /// **'Llega a más clientes con nuestros planes premium'**
+  String get reachMoreCustomers;
+
+  /// No description provided for @redirectingToPremium.
+  ///
+  /// In es, this message translates to:
+  /// **'Redirigiendo a planes premium...'**
+  String get redirectingToPremium;
+
+  /// No description provided for @seeMore.
+  ///
+  /// In es, this message translates to:
+  /// **'Ver más'**
+  String get seeMore;
+
+  /// No description provided for @browserOpenError.
+  ///
+  /// In es, this message translates to:
+  /// **'No se pudo abrir el navegador. Verifica que tienes uno instalado.'**
+  String get browserOpenError;
+
+  /// No description provided for @paymentMethod.
+  ///
+  /// In es, this message translates to:
+  /// **'Método de Cobro'**
+  String get paymentMethod;
+
+  /// No description provided for @connectMercadoPago.
+  ///
+  /// In es, this message translates to:
+  /// **'Conecta tu cuenta de Mercado Pago'**
+  String get connectMercadoPago;
+
+  /// No description provided for @connectMercadoPagoDesc.
+  ///
+  /// In es, this message translates to:
+  /// **'Al vincular tu cuenta, el dinero de tus servicios se depositará directamente en tu billetera de Mercado Pago de forma automática y segura.'**
+  String get connectMercadoPagoDesc;
+
+  /// No description provided for @secureConnection.
+  ///
+  /// In es, this message translates to:
+  /// **'Conexión 100% segura y encriptada'**
+  String get secureConnection;
+
+  /// No description provided for @automaticTransfers.
+  ///
+  /// In es, this message translates to:
+  /// **'Transferencias automáticas tras cada trabajo'**
+  String get automaticTransfers;
+
+  /// No description provided for @connectWithMercadoPagoBtn.
+  ///
+  /// In es, this message translates to:
+  /// **'Conectar con Mercado Pago'**
+  String get connectWithMercadoPagoBtn;
+
+  /// No description provided for @dangerZone.
+  ///
+  /// In es, this message translates to:
+  /// **'Zona Peligrosa'**
+  String get dangerZone;
+
+  /// No description provided for @deleteAcc.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar cuenta'**
+  String get deleteAcc;
+
+  /// No description provided for @deleteAccDef.
+  ///
+  /// In es, this message translates to:
+  /// **'Desactivar tu cuenta de forma permanente'**
+  String get deleteAccDef;
+
+  /// No description provided for @deleteAccountTitle.
+  ///
+  /// In es, this message translates to:
+  /// **'Eliminar cuenta'**
+  String get deleteAccountTitle;
+
+  /// No description provided for @irreversibleAction.
+  ///
+  /// In es, this message translates to:
+  /// **'Esta acción es irreversible'**
+  String get irreversibleAction;
+
+  /// No description provided for @cantAccessAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'No podrás volver a acceder a tu cuenta.'**
+  String get cantAccessAccount;
+
+  /// No description provided for @profileNotVisible.
+  ///
+  /// In es, this message translates to:
+  /// **'Tu perfil dejará de ser visible para otros.'**
+  String get profileNotVisible;
+
+  /// No description provided for @cantRegisterAgain.
+  ///
+  /// In es, this message translates to:
+  /// **'No podrás registrarte nuevamente con este mismo correo por motivos de seguridad.'**
+  String get cantRegisterAgain;
+
+  /// No description provided for @confirmDeleteInstruction.
+  ///
+  /// In es, this message translates to:
+  /// **'Para confirmar, escribe \"ELIMINAR\" en el recuadro de abajo:'**
+  String get confirmDeleteInstruction;
+
+  /// No description provided for @deleteKeyword.
+  ///
+  /// In es, this message translates to:
+  /// **'ELIMINAR'**
+  String get deleteKeyword;
+
+  /// No description provided for @processing.
+  ///
+  /// In es, this message translates to:
+  /// **'Procesando...'**
+  String get processing;
+
+  /// No description provided for @deactivateMyAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Desactivar mi cuenta'**
+  String get deactivateMyAccount;
+
+  /// No description provided for @errorDeactivatingAccount.
+  ///
+  /// In es, this message translates to:
+  /// **'Ocurrió un error al intentar desactivar la cuenta. Intenta de nuevo.'**
+  String get errorDeactivatingAccount;
 }
 
 class _AppLocalizationsDelegate
