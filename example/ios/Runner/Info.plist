@@ -43,18 +43,21 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
     <key>NSCameraUsageDescription</key>
-    <string>PerDiem necesita acceso a la cámara para capturar fotos de servicios, productos o documentos.</string>
+    <string>PerDiem usa la cámara para que fotografíes boletas, facturas y comprobantes de gastos, adjuntándolos automáticamente al registro correspondiente.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>PerDiem necesita acceso a la galería de fotos para que puedas adjuntar imágenes de su portafolio o documentos legales.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>PerDiem necesita acceso continuo a la ubicación para servicios en segundo plano y seguimiento de gastos</string>
+    <string>PerDiem accede a tu galería para que puedas adjuntar fotos ya existentes de boletas, comprobantes o documentos legales a tus registros de gastos.</string>
+	<!-- ✅ ELIMINADO: NSLocationAlwaysAndWhenInUseUsageDescription — NO declarar si no se usa
+	     Apple rechaza apps que piden Always sin justificación aprobada (equivalente a
+	     ACCESS_BACKGROUND_LOCATION en Android, removido por el mismo motivo) -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PerDiem necesita acceso a la ubicación para rastrear gastos por ubicación y mejorar la experiencia del usuario</string>
+	<string>PerDiem usa tu ubicación mientras usas la app para asociar automáticamente cada gasto o servicio al lugar donde ocurrió, evitando que tengas que ingresarlo manualmente.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- ✅ ELIMINADO: "location" de UIBackgroundModes — no se hace tracking en segundo plano
+	     (equivalente a remover FOREGROUND_SERVICE_LOCATION en Android).
+	     Se mantiene "fetch" si la app usa background fetch para otra función (ej. sync). -->
 	<key>UIBackgroundModes</key>
     <array>
-        <string>location</string>
         <string>fetch</string>
     </array>
 	<key>UILaunchStoryboardName</key>

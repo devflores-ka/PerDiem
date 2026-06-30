@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../auth/auth.dart';
 import '/l10n/generated/app_localizations.dart';
+import '../../auth/auth.dart';
 
 class DeleteAccountScreen extends StatefulWidget {
   final Map<String, dynamic>? userProfile;

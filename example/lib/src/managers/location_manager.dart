@@ -1,4 +1,5 @@
-// Archivo: lib/managers/location_manager.dart
+// src/managers/location_manager.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
@@ -11,6 +12,8 @@ class LocationManager extends ChangeNotifier {
   bool _isLoading = true;
   String _errorMessage = '';
 
+  StreamSubscription<Position>? _positionStreamSubscription;
+
   // Getters
   LatLng? get currentPosition => _currentPosition;
   String? get currentSector => _currentSector;
@@ -21,10 +24,11 @@ class LocationManager extends ChangeNotifier {
   LocationManager();
 
   // Determinar si debemos actualizar los trabajadores cercanos
+  // ignore: unused_element
   bool _shouldRefreshWorkers(LatLng newPosition) {
     if (_currentPosition == null) return true;
 
-    final distance = const Distance();
+    const distance = Distance();
     final distanceMoved = distance.as(
         LengthUnit.Meter,
         _currentPosition!,
@@ -36,7 +40,7 @@ class LocationManager extends ChangeNotifier {
   }
 
   // Actualizar la posición actual
-  // ✅ MEJORADO: Método updatePosition con notificación
+  // Método updatePosition con notificación
   Future<void> updatePosition(LatLng newPosition, Function(LatLng) determineSector) async {
     try {
       if (kDebugMode) {
@@ -68,7 +72,7 @@ class LocationManager extends ChangeNotifier {
     }
   }
 
-  // ✅ NUEVO: Guardar ubicación en base de datos
+  // Guardar ubicación en base de datos
   Future<void> _saveLocationToDatabase(LatLng position) async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -101,7 +105,7 @@ class LocationManager extends ChangeNotifier {
     }
   }
 
-  // ✅ NUEVO: Cargar ubicación desde base de datos
+  // Cargar ubicación desde base de datos
   Future<LatLng?> loadLocationFromDatabase() async {
     try {
       final user = Supabase.instance.client.auth.currentUser;
@@ -136,7 +140,7 @@ class LocationManager extends ChangeNotifier {
   }
 
   // Configuración de la ubicación
-  // ✅ MEJORADO: initializeLocation con mejor lógica
+  // initializeLocation con mejor lógica
   Future<bool> initializeLocation(Function(LatLng) determineSector, {required bool forceUpdate}) async {
     setLoading(true);
 
@@ -181,8 +185,11 @@ class LocationManager extends ChangeNotifier {
         return false;
       }
 
+      _startLocationUpdates(determineSector);
+
       // Obtener ubicación actual
       final position = await Geolocator.getCurrentPosition(
+        // ignore: deprecated_member_use
         desiredAccuracy: LocationAccuracy.high,
       );
 
@@ -199,6 +206,37 @@ class LocationManager extends ChangeNotifier {
     }
   }
 
+  // Iniciar escucha continua de ubicación con Foreground Service
+  void _startLocationUpdates(Function(LatLng) determineSector) {
+    if (kDebugMode) {
+      print('📍 Iniciando Foreground Service de ubicación...');
+    }
+
+    // Configuración específica para forzar la notificación en Android
+    final locationSettings = AndroidSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 10, // Actualiza cada vez que te muevas 10 metros
+      forceLocationManager: true,
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationText: 'PerDiem está actualizando tu ubicación en tiempo real.',
+        notificationTitle: 'Ubicación activa',
+        enableWakeLock: true,
+      ),
+    );
+
+    // Cancelar cualquier escucha anterior por seguridad
+    _positionStreamSubscription?.cancel();
+
+    // Iniciar el stream constante
+    _positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
+    ).listen((Position position) {
+      final currentPos = LatLng(position.latitude, position.longitude);
+      // Reutilizamos tu método updatePosition cada vez que nos movemos
+      updatePosition(currentPos, determineSector);
+    });
+  }
+
   // Métodos para manipular el estado
   void setLoading(bool isLoading) {
     _isLoading = isLoading;
@@ -213,5 +251,11 @@ class LocationManager extends ChangeNotifier {
   void clearError() {
     _errorMessage = '';
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _positionStreamSubscription?.cancel();
+    super.dispose();
   }
 }

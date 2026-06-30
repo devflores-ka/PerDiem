@@ -1,4 +1,4 @@
-package com.perdiem.app
+package com.perdiemapp.cl
 
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine

@@ -1,21 +1,45 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
-        maxSdkVersion="30"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
-        maxSdkVersion="30"/>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- ✅ INTERNET siempre necesario -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- ✅ CORREGIDO: sin maxSdkVersion, necesario para Android 12+ con foreground service -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- ✅ ELIMINADO: ACCESS_BACKGROUND_LOCATION — NO lo declares si no lo necesitas -->
+    <!-- Google rechaza apps que lo declaran sin justificación aprobada -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove"/>
+
+    <!-- ✅ Necesario para el foreground service de ubicación -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
 
-    <uses-feature android:name="android.hardware.location" android:required="false"/>
-    <uses-feature android:name="android.hardware.location.gps" android:required="false"/>
-    <uses-feature android:name="android.hardware.location.network" android:required="false"/>
+    <!-- ✅ Notificaciones push -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- ✅ Estos removes están bien, los deja el image_picker pero no los necesitas -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
+        tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
+        tools:node="remove"/>
+
+    <!-- ✅ Hardware features como optional está correcto -->
+    <uses-feature android:name="android.hardware.location"
+        android:required="false"/>
+    <uses-feature android:name="android.hardware.location.gps"
+        android:required="false"/>
+    <uses-feature android:name="android.hardware.location.network"
+        android:required="false"/>
 
     <application
         android:label="PerDiem"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,78 +48,69 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme"
-                />
 
             <meta-data
-                android:name="com.google.android.geo.API_KEY"
-                android:value="AIzaSyBAATrebPK0CyHGlvJcf7COWw6gyfqya3s"/>
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme"/>
 
             <meta-data
                 android:name="io.flutter.app.android.EnableImpeller"
-                android:value="false" />
+                android:value="false"/>
 
-            <!-- Intent filter para el launcher -->
+            <!-- Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
-            <!-- Intent filter para enlaces profundos con esquema personalizado (perdiem://) -->
+            <!-- Deep link perdiem:// -->
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <!-- URI Scheme para abrir la app con perdiem:// -->
-                <data android:scheme="perdiem" />
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="perdiem"/>
             </intent-filter>
 
-            <!-- Añade este nuevo intent-filter para los enlaces de Supabase -->
+            <!-- Deep link Supabase functions -->
             <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
                 <data
                     android:scheme="https"
                     android:host="obebqaertspxottkblzm.supabase.co"
-                    android:pathPrefix="/functions/v1/compartir/" />
+                    android:pathPrefix="/functions/v1/compartir/"/>
             </intent-filter>
 
-            <!-- Intent filter para enlaces profundos con HTTP/HTTPS (App Links) -->
+            <!-- App Links verificados -->
             <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <!-- App Links para abrir la app desde https://app.perdiem.cl -->
-                <data android:scheme="https"
-                    android:host="app.perdiem.cl" />
-                <!-- También agrega el dominio http si deseas soportarlo -->
-                <data android:scheme="http"
-                    android:host="app.perdiem.cl" />
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="app.perdiem.cl"/>
+                <data android:scheme="http" android:host="app.perdiem.cl"/>
             </intent-filter>
 
         </activity>
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+
+        <!-- ✅ CORREGIDO: cerrar </activity> antes del <service> estaba mal indentado
+             (funcionaba igual pero es confuso, mejor dejarlo claro) -->
+        <service
+            android:name="com.baseflow.geolocator.GeolocatorLocationService"
+            android:foregroundServiceType="location"
+            android:exported="false"/>
+
         <meta-data
             android:name="flutterEmbedding"
-            android:value="2" />
-    </application>
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility?hl=en and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+            android:value="2"/>
 
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    </application>
+
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+
 </manifest>

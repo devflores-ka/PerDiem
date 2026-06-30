@@ -2,7 +2,7 @@ name: example
 description: A new Flutter project.
 publish_to: 'none'
 
-version: 1.5.1
+version: 1.5.2
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -21,7 +21,9 @@ dependencies:
   file_saver: ^0.2.14
   flutter:
     sdk: flutter
-  flutter_localizations: # ✅ ESTO FALTABA
+  flutter_web_plugins:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
   flutter_chat_types: ^3.6.2
   flutter_chat_ui: ^1.6.15

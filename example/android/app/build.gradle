@@ -7,6 +7,13 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+// 1. CARGAR LAS PROPIEDADES DE TU LLAVE DE PRODUCCIÓN
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -19,16 +26,30 @@ def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '
 def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '1.0'
 
 android {
-    namespace "com.perdiem.app"
+    namespace "com.perdiemapp.cl"
     compileSdk = 36
     ndkVersion = "27.0.12077973"
 
+    packagingOptions {
+        doNotStrip "**/*.so"
+    }
+
+    // 2. CONFIGURAR EL FIRMADO CON LA LLAVE QUE SE CARGÓ ARRIBA
+    signingConfigs {
+        release {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
     defaultConfig {
-        applicationId "com.perdiem.app"
+        applicationId "com.perdiemapp.cl"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion 36
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode 2
+        versionName "1.5.2"
     }
 
     buildFeatures {
@@ -50,7 +71,9 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // 3. CAMBIAR LA FIRMA DE DEBUG A LA DE RELEASE
+            signingConfig signingConfigs.release 
+            
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
@@ -61,7 +84,7 @@ flutter {
 }
 
 dependencies {
-    implementation 'com.google.android.gms:play-services-maps:18.1.0'
+    //implementation 'com.google.android.gms:play-services-maps:18.1.0'
 }
 
 configurations.all {

@@ -3,11 +3,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:perdiem_app/flutter_supabase_chat_core.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/services.dart';
 
 import 'firebase_options.dart';
 // ignore: depend_on_referenced_packages
@@ -17,12 +18,13 @@ import 'src/pages/chat/home.dart';
 import 'src/pages/jobs/my_app.dart';
 import 'src/pages/resumen/negotiations_screen.dart';
 import 'src/pages/search/map_screen.dart';
+import 'src/pages/user/configuracion/delete_account_screen.dart';
 import 'src/pages/user/perfil_screen.dart';
 import 'src/pages/verificacion/verificacion_screen.dart';
 import 'src/services/notification_service.dart';
 import 'src/splash_screen.dart';
 import 'src/theme/color_schemes.dart';
-import 'supabase_options.dart';
+import 'supabase_options.dart'; 
 
 // Clave global para ScaffoldMessenger
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -50,6 +52,8 @@ void main() async {
     print('🚀 Initializing NotificationService');
   }
 
+  usePathUrlStrategy();
+
   runApp(
     //  Envolvemos la app en MultiProvider para inyectar el idioma
     MultiProvider(
@@ -68,6 +72,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     //  Escuchamos el idioma actual
     final languageProvider = Provider.of<LanguageProvider>(context);
+
+    String rutaInicial = '/';
+    // Uri.base.path lee la URL actual del navegador
+    if (kIsWeb && Uri.base.path == '/borrar-cuenta') {
+      rutaInicial = '/borrar-cuenta';
+    }
 
     return MaterialApp(
       scaffoldMessengerKey: scaffoldMessengerKey,
@@ -110,12 +120,13 @@ class MyApp extends StatelessWidget {
         ),
       ),
 
-      initialRoute: '/',
+      initialRoute: rutaInicial,
       routes: {
         '/': (context) => const SplashScreen(),
         '/main': (context) => const UserOnlineStateObserver(
           child: MainScreen(),
         ),
+        '/borrar-cuenta': (context) => const DeleteAccountScreen(), 
       },
     );
   }
