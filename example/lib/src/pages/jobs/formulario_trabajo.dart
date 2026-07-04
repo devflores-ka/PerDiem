@@ -307,7 +307,7 @@ class _FormularioTrabajoState extends State<FormularioTrabajo> {
       return;
     }
 
-    final location = '${l10n.point}($lon $lat)';
+    final location = 'POINT($lon $lat)';
 
     try {
       await supabase.schema('jobs').from('offers').insert({
