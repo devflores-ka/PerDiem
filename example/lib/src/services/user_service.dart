@@ -165,6 +165,25 @@ class UserService {
     }
   }
 
+  /// Obtiene datos básicos de un usuario (propio o de un tercero) para
+  /// mostrarlos en un perfil de solo lectura (ej. perfil público desde el
+  /// chat o el mapa). No incluye datos sensibles como email, mp_access_token, etc.
+  Future<Map<String, dynamic>?> getPublicUserProfile(String userId) async {
+    try {
+      return await supabase
+          .schema('chats')
+          .from('users')
+          .select('id, firstName, lastName, imageUrl, descripcion')
+          .eq('id', userId)
+          .maybeSingle();
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al obtener perfil público: $e');
+      }
+      return null;
+    }
+  }
+
   /// Guarda los datos personales del usuario en la base de datos
   Future<void> savePersonalData(Map<String, dynamic> personalData) async {
     try {
@@ -374,10 +393,15 @@ class UserService {
     }
   }
 
-  // Obtener categorías y oficios del usuario
-  Future<Map<String, dynamic>> getUserCategoriesWithOficios() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) throw Exception('Usuario no autenticado');
+  // Obtener categorías y oficios de un usuario.
+  //
+  // [userId] es opcional: si no se pasa, se usa el usuario logueado
+  // (comportamiento original, usado por PerfilScreen para "mi perfil").
+  // Si se pasa, trae las categorías/oficios de ESE usuario (usado por
+  // PerfilPublicoScreen para ver el perfil de un tercero, ej. desde el chat).
+  Future<Map<String, dynamic>> getUserCategoriesWithOficios([String? userId]) async {
+    final targetId = userId ?? supabase.auth.currentUser?.id;
+    if (targetId == null) throw Exception('Usuario no autenticado');
 
     try {
       // Obtener categorías
@@ -385,7 +409,7 @@ class UserService {
           .schema('jobs')
           .from('user_categories')
           .select('category_id, categories:category_id(id, name)')
-          .eq('user_id', user.id);
+          .eq('user_id', targetId);
 
       final categories = <Map<String, dynamic>>[];
       final oficiosPorCategoria = <int, List<Map<String, dynamic>>>{};
@@ -400,7 +424,7 @@ class UserService {
               .schema('jobs')
               .from('user_oficios')
               .select('oficio_id, oficios:oficio_id(id, name)')
-              .eq('user_id', user.id)
+              .eq('user_id', targetId)
               .eq('category_id', category['id']);
 
           final oficios = <Map<String, dynamic>>[];

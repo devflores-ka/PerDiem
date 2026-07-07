@@ -226,7 +226,7 @@ class SupabaseChatCore {
         .eq('type', types.RoomType.direct.toShortString())
         .eq('userIds', userIds)
         .limit(1);
-        
+
     // Check if room already exist.
     if (roomQuery.isNotEmpty) {
       final room = (await processRoomsRows(
@@ -271,7 +271,7 @@ class SupabaseChatCore {
       'userIds': userIds,
       'userRoles': null,
     }).select();
-    
+
     return types.Room(
       id: room.first['id'].toString(),
       metadata: metadata,
@@ -447,6 +447,10 @@ class SupabaseChatCore {
   /// Sends a message to the Supabase. Accepts any partial message and a
   /// room ID. If arbitrary data is provided in the [partialMessage]
   /// does nothing.
+  ///
+  /// Si el mensaje es rechazado por el filtro de contenido objetable
+  /// (trigger `chats.filter_message_content`), se lanza una [Exception]
+  /// con un mensaje entendible para mostrar en la UI.
   Future<void> sendMessage(dynamic partialMessage, String roomId) async {
     if (loggedSupabaseUser == null) return;
 
@@ -486,10 +490,17 @@ class SupabaseChatCore {
       messageMap['createdAt'] = DateTime.now().millisecondsSinceEpoch;
       messageMap['updatedAt'] = DateTime.now().millisecondsSinceEpoch;
 
-      await client
-          .schema(config.schema)
-          .from(config.messagesTableName)
-          .insert(messageMap);
+      try {
+        await client
+            .schema(config.schema)
+            .from(config.messagesTableName)
+            .insert(messageMap);
+      } on PostgrestException catch (e) {
+        if (e.message.contains('CONTENT_BLOCKED')) {
+          throw Exception('Tu mensaje contiene contenido no permitido.');
+        }
+        rethrow;
+      }
 
       await client
           .schema(config.schema)
@@ -580,17 +591,17 @@ class SupabaseChatCore {
               'firstName.ilike.%$filter%,lastName.ilike.%$filter%',
             )
         : table.select();
-        
+
     var query = queryUnlimited
         .order('firstName', ascending: true)
         .order('lastName', ascending: true);
-        
+
     if (offset != null && limit != null) {
-      query = query.range(offset, offset + limit - 1); 
+      query = query.range(offset, offset + limit - 1);
     } else if (limit != null) {
       query = query.limit(limit);
     }
-    
+
     final response = await query;
     final List<types.User> parsedUsers = [];
 
@@ -598,12 +609,12 @@ class SupabaseChatCore {
     for (var e in response) {
       try {
         final safeData = Map<String, dynamic>.from(e);
-        
+
         // 1. Parche de Rol
         if (safeData['role'] == 'worker') {
           safeData['role'] = 'user';
         }
-        
+
         // 2. Parche de Fechas (Convertir String de Supabase a Int para la librería)
         if (safeData['createdAt'] != null && safeData['createdAt'] is String) {
           safeData['createdAt'] = DateTime.tryParse(safeData['createdAt'])?.millisecondsSinceEpoch;
@@ -633,15 +644,15 @@ class SupabaseChatCore {
           .select()
           .eq('id', uid)
           .limit(1);
-          
+
       if (response.isNotEmpty) {
         final safeData = Map<String, dynamic>.from(response.first);
-        
+
         // 1. Parche de Rol
         if (safeData['role'] == 'worker') {
           safeData['role'] = 'user';
         }
-        
+
         // 2. Parche de Fechas
         if (safeData['createdAt'] != null && safeData['createdAt'] is String) {
           safeData['createdAt'] = DateTime.tryParse(safeData['createdAt'])?.millisecondsSinceEpoch;
@@ -657,5 +668,69 @@ class SupabaseChatCore {
       debugPrint('⚠️ Error al cargar usuario único: $e');
       return null;
     }
+  }
+
+  // ===================================================================
+  // MODERACIÓN DE CONTENIDO (Guideline 1.2 de Apple)
+  // ===================================================================
+
+  /// Bloquea a otro usuario: sus salas y mensajes desaparecen de forma
+  /// instantánea (vía RLS restrictive en `chats.rooms` / `chats.messages`)
+  /// y queda constancia en `chats.reports` para tu revisión como developer.
+  Future<void> blockUser(String userId, {String reason = 'blocked_by_user'}) async {
+    if (loggedSupabaseUser == null) return;
+    await client.schema(config.schema).rpc('block_user', params: {
+      'target_id': userId,
+      'reason': reason,
+    },
+    );
+  }
+
+  /// Revierte un bloqueo previo.
+  Future<void> unblockUser(String userId) async {
+    if (loggedSupabaseUser == null) return;
+    await client.schema(config.schema).rpc('unblock_user', params: {
+      'target_id': userId,
+    },
+    );
+  }
+
+  /// Retorna los ids de usuarios bloqueados por el usuario actual.
+  Future<List<String>> blockedUserIds() async {
+    if (loggedSupabaseUser == null) return const [];
+    final response = await client
+        .schema(config.schema)
+        .from('blocked_users')
+        .select('blocked_id')
+        .eq('blocker_id', loggedSupabaseUser!.id);
+    return response.map<String>((e) => e['blocked_id'] as String).toList();
+  }
+
+  /// Reporta un mensaje puntual (botón "flag" sobre la burbuja de chat).
+  Future<void> reportMessage({
+    required String messageId,
+    required String roomId,
+    required String reportedUserId,
+    required String reason,
+  }) async {
+    if (loggedSupabaseUser == null) return;
+    await client.schema(config.schema).rpc('report_message', params: {
+      'p_message_id': int.parse(messageId),
+      'p_room_id': int.parse(roomId),
+      'p_reported_user_id': reportedUserId,
+      'p_reason': reason,
+    },
+    );
+  }
+
+  /// Reporta a un usuario en general (no asociado a un mensaje puntual),
+  /// por ejemplo desde su perfil público.
+  Future<void> reportUser(String userId, String reason) async {
+    if (loggedSupabaseUser == null) return;
+    await client.schema(config.schema).rpc('report_user', params: {
+      'p_reported_user_id': userId,
+      'p_reason': reason,
+    },
+    );
   }
 }

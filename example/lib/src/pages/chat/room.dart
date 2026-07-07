@@ -15,6 +15,7 @@ import '/l10n/generated/app_localizations.dart';
 import '../../services/budget_proposal_service.dart';
 import '../../services/notification_service.dart';
 import '../../widgets/service_completion_message.dart';
+import '../search/perfil_publico_screen.dart';
 
 class RoomPage extends StatefulWidget {
   const RoomPage({
@@ -81,6 +82,29 @@ class _RoomPageState extends State<RoomPage> {
     } catch (e) {
       debugPrint('Error recuperando usuario local: $e');
     }
+  }
+
+  /// Devuelve al "otro" participante de una sala directa (1 a 1), o null
+  /// si es una sala grupal o si por alguna razón no hay otro usuario.
+  /// Se usa para habilitar "Ver perfil / Reportar / Bloquear" en el menú.
+  types.User? get _otherUser {
+    final me = SupabaseChatCore.instance.loggedSupabaseUser?.id;
+    if (widget.room.type != types.RoomType.direct || me == null) return null;
+    try {
+      return widget.room.users.firstWhere((u) => u.id != me);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _openOtherUserProfile() {
+    final other = _otherUser;
+    if (other == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PerfilPublicoScreen(userId: other.id),
+      ),
+    );
   }
 
   void _handleAttachmentPressed() {
@@ -284,10 +308,24 @@ class _RoomPageState extends State<RoomPage> {
 
   Future<void> _handleSendPressed(types.PartialText message) async {
     await _chatController.endTyping();
-    await SupabaseChatCore.instance.sendMessage(
-      message,
-      widget.room.id,
-    );
+    try {
+      await SupabaseChatCore.instance.sendMessage(
+        message,
+        widget.room.id,
+      );
+    } catch (e) {
+      // El filtro de contenido objetable (trigger en Supabase) puede
+      // rechazar el mensaje; mostramos el motivo al usuario.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
     // Añadir notificación para los mensajes nuevos
     // Solo enviar notificación al otro usuario en la sala (no al autor)
     final currentUserId = SupabaseChatCore.instance.loggedSupabaseUser?.id;
@@ -677,6 +715,8 @@ class _RoomPageState extends State<RoomPage> {
           onSelected: (value) {
             if (value == 'budget') {
               _showBudgetDialog();
+            } else if (value == 'profile') {
+              _openOtherUserProfile();
             }
           },
           itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
@@ -690,6 +730,17 @@ class _RoomPageState extends State<RoomPage> {
                 ],
               ),
             ),
+            if (_otherUser != null)
+              const PopupMenuItem<String>(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline),
+                    SizedBox(width: 8),
+                    Text('Ver perfil'),
+                  ],
+                ),
+              ),
           ],
         ),
       ],

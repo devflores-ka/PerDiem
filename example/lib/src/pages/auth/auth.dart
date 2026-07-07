@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../main.dart';
 import '../../services/notification_service.dart';
+import 'legal_doc_screen.dart';
 import 'register.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -285,7 +286,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         '¿No tienes cuenta? Regístrate aquí',
                         style: TextStyle(color: Colors.blue),
                       ),
-                      const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
                       GestureDetector(
                         onTap: () {
                           Navigator.push(
@@ -304,7 +306,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
