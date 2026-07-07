@@ -285,6 +285,25 @@ class _AuthScreenState extends State<AuthScreen> {
                         '¿No tienes cuenta? Regístrate aquí',
                         style: TextStyle(color: Colors.blue),
                       ),
+                      const SizedBox(height: 20),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LegalDocScreen(docType: 'terms'),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Al iniciar sesión, aceptas nuestros Términos y Condiciones',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
