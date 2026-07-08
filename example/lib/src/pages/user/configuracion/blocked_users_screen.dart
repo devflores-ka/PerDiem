@@ -49,17 +49,18 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen>
       _blockedError = null;
     });
     try {
+      // RPC en vez de select+embed directo: la RLS restrictiva que oculta
+      // usuarios bloqueados de chats.users (a propósito, para el listado
+      // de "nueva conversación") también taparía el nombre aquí si
+      // consultáramos la tabla directo. get_my_blocked_users() es
+      // SECURITY DEFINER y no queda sujeta a esa policy.
       final data = await _supabase
           .schema('chats')
-          .from('blocked_users')
-          .select(
-            'blocked_id, created_at, blocked:blocked_id(id, firstName, lastName, imageUrl)',
-          )
-          .order('created_at', ascending: false);
+          .rpc('get_my_blocked_users');
 
       if (!mounted) return;
       setState(() {
-        _blockedUsers = List<Map<String, dynamic>>.from(data);
+        _blockedUsers = List<Map<String, dynamic>>.from(data as List);
         _isLoadingBlocked = false;
       });
     } catch (e) {
@@ -79,16 +80,11 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen>
     try {
       final data = await _supabase
           .schema('chats')
-          .from('reports')
-          .select(
-            'id, reason, status, created_at, reported_user_id, '
-            'reported:reported_user_id(firstName, lastName, imageUrl)',
-          )
-          .order('created_at', ascending: false);
+          .rpc('get_my_reports');
 
       if (!mounted) return;
       setState(() {
-        _reports = List<Map<String, dynamic>>.from(data);
+        _reports = List<Map<String, dynamic>>.from(data as List);
         _isLoadingReports = false;
       });
     } catch (e) {
@@ -211,9 +207,8 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen>
         itemCount: _blockedUsers.length,
         itemBuilder: (context, index) {
           final entry = _blockedUsers[index];
-          final user = entry['blocked'] as Map<String, dynamic>?;
-          final name = _fullName(user);
-          final imageUrl = user?['imageUrl'] as String?;
+          final name = _fullName(entry);
+          final imageUrl = entry['imageUrl'] as String?;
           final blockedId = entry['blocked_id'] as String;
           final createdAt = entry['created_at'] as String?;
 
@@ -288,8 +283,7 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen>
         itemCount: _reports.length,
         itemBuilder: (context, index) {
           final entry = _reports[index];
-          final reportedUser = entry['reported'] as Map<String, dynamic>?;
-          final name = _fullName(reportedUser);
+          final name = _fullName(entry);
           final reason = entry['reason'] as String? ?? '';
           final status = entry['status'] as String? ?? 'pending';
           final createdAt = entry['created_at'] as String?;
