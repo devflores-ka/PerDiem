@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '/l10n/generated/app_localizations.dart';
 import '../../../managers/language_provider.dart';
 import '../../auth/legal_doc_screen.dart';
+import 'blocked_users_screen.dart';
 import 'change_email_screen.dart';
 import 'change_password_screen.dart';
 import 'delete_account_screen.dart';
@@ -105,6 +106,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: l10n.privacySecurity,
             subtitle: l10n.privacyPolicySubtitle,
             onTap: () => _navigateToPrivacySettings(context),
+          ),
+
+          _buildSettingsTile(
+            context,
+            icon: Icons.shield_outlined,
+            title: 'Bloqueados y reportes',
+            subtitle: 'Revisa a quién bloqueaste y tus reportes enviados',
+            onTap: () => _navigateToBlockedUsers(context),
           ),
 
           // ZONA PELIGROSA
@@ -373,6 +382,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _navigateToBlockedUsers(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const BlockedUsersScreen(),
+      ),
+    );
+  }
+
   void _showAboutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -422,7 +440,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                'Versión 1.0.0',
+                'Versión 1.5.5',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.grey.shade700,
